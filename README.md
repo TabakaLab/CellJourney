@@ -1,2 +1,69 @@
-# CellJourney
-Interactive cell trajectory visualization in 3D
+# Cell Journey
+
+Cell Journey is an open-source tool for interactive exploration and analysis of single-cell trajectories. It allows operating in three-dimensional space at the level of the entire dataset and individual cells. Each implemented visualization comes with several parameters, allowing versatile and quick customization. The resulting graphs can be saved as raster graphics, vector graphics, or interactive visualization in a standalone html file format.
+Features
+
+ - Analyze datasets in csv, h5, h5mu, h5ad formats.
+ - Visualize 3D scatter plots, cone plots, streamlines, and streamlets.
+ - Quick and straightforward configuration.
+ - Data filtering along with various plot customizations.
+ - Explore multiple features simultaneously.
+ - Automated differential gene expression analysis for calculated trajectories.
+ - Save publication-ready figures as well as interactive visualizations.
+
+## Installation
+
+In order to install Cell Journey, it is recommended to create a virtual environment in which all the required dependencies can be installed. The installation process consists of the following steps:
+
+ - Download Cell Journey.
+ - Create and activate a virtual environment.
+ - Install dependencies.
+ - Run the main script.
+
+#### Download Cell Journey
+To download Cell Journey, execute the following command:
+```
+git clone https://github.com/TabakaLab/CellJourney.git
+```
+or click on the **<> Code** button, and then select **Download ZIP**. After downloading and extracting the archive, navigate to the Cell Journey's main directory.
+
+#### Create and activate virtual environment
+You can create a virtual environment using [venv](https://docs.python.org/3/library/venv.html) or [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html). Using conda is recommended as it provides a more convenient way of configuring specific python version, in this case 3.11.7.
+
+**Venv**
+```
+python -m venv cjenv
+source cjenv/bin/activate
+```
+**Conda**
+```
+conda create --name cjenv python=3.11.7
+conda activate cjenv
+```
+
+#### Install dependencies
+Cell Journey is based on many libraries that are necessary for the toolkit to run correctly. These dependencies can be installed using the command
+```
+pip install -r /path/to/celljourney/requirements.txt
+```
+Please replace the example path `/path/to/celljourney/` with one corresponding to your system's Cell Journey location. Remember to install the dependencies **after** activating the virtual environment.
+
+#### Run the main script
+To run Cell Journey, you need to run the python script `celljourney.py`
+```
+python /path/to/celljourney/celljourney.py
+```
+Wait for the following information to show `Dash is running on http://127.0.0.1:8080/` and then navigate to [http://127.0.0.1:8080](http://127.0.0.1:8080).
+
+Cell Journey's default port is 8080. If, for some reason, the user would like to work on a different one, run the script with an additional port parameter, such as
+```
+python celljourney.pl --port 8081
+```
+If the default or user-designated port is already occupied, the program will not run. If the user wants to run several Cell Journey sessions simultaneously, a different port should be designated for each session.
+
+To terminate the program, you must abort the `celljourney.py` script. This can be done in the shell where the script was run using the `ctrl+z` key combination.
+
+## Learn more
+
+To learn more, including how to use the Cell Journey, please visit the documentation page at [TabakaLab.github.io/CellJourney](https://TabakaLab.github.io/CellJourney).
+
