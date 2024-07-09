@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>Tutorials - Cell Journey</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Tutorials";
+        var mkdocs_page_input_path = "tutorials.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="index.html" class="icon icon-home"> Cell Journey
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Tutorials</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#generating-3d-data">Generating 3D Data</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="support.html">Support</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Cell Journey</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html" class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Tutorials</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="tutorials">Tutorials</h2>
+<h3 id="generating-3d-data">Generating 3D Data</h3>
+<p>To generate the dataset, we will use the built-in pancreas dataset from <a href="https://scvelo.readthedocs.io">scvelo</a>. The process of obtaining the velocity vector components is detailed in the scvelo tutorials. We will focus on one key difference that enables generating three-dimensional data.</p>
+<pre><code>adata = scv.datasets.pancreas()
+adata
+</code></pre>
+<pre><code>AnnData object with n_obs × n_vars = 3696 × 27998
+    obs: 'clusters_coarse', 'clusters', 'S_score', 'G2M_score'
+    var: 'highly_variable_genes'
+    uns: 'clusters_coarse_colors', 'clusters_colors', 'day_colors', 'neighbors', 'pca'
+    obsm: 'X_pca', 'X_umap'
+    layers: 'spliced', 'unspliced'
+    obsp: 'distances', 'connectivities'
+</code></pre>
+<p>The dataset already contains a UMAP embedding, but it is two-dimensional.</p>
+<pre><code>adata.obsm[&quot;X_umap&quot;].shape
+</code></pre>
+<pre><code>(3696, 2)
+</code></pre>
+<p>Using <a href="https://scanpy.readthedocs.io/en/stable/generated/scanpy.tl.umap.html">scanpy.tl.umap</a>, we will create a three-dimensional UMAP embedding instead. This will allow us to represent the cells in 3D space and the velocity vectors will be determined according to the dimensionality of the specified embedding.</p>
+<pre><code>sc.tl.umap(adata, n_components = 3)
+adata.obsm[&quot;X_umap&quot;].shape
+</code></pre>
+<pre><code>(3696, 3)
+</code></pre>
+<pre><code>scv.pp.filter_genes(adata, min_shared_counts=20)
+scv.pp.normalize_per_cell(adata)
+scv.pp.filter_genes_dispersion(adata, n_top_genes=2000)
+scv.pp.log1p(adata)
+adata
+</code></pre>
+<pre><code>AnnData object with n_obs × n_vars = 3696 × 2000
+    obs: 'clusters_coarse', 'clusters', 'S_score', 'G2M_score', 'initial_size_unspliced', 'initial_size_spliced', 'initial_size', 'n_counts'
+    var: 'highly_variable_genes', 'gene_count_corr', 'means', 'dispersions', 'dispersions_norm', 'highly_variable'
+    uns: 'clusters_coarse_colors', 'clusters_colors', 'day_colors', 'neighbors', 'pca', 'umap', 'log1p'
+    obsm: 'X_pca', 'X_umap'
+    layers: 'spliced', 'unspliced'
+    obsp: 'distances', 'connectivities'
+</code></pre>
+<pre><code>scv.tl.velocity_graph(adata)
+scv.tl.velocity(adata)
+scv.tl.velocity_embedding(adata, basis='umap')
+adata
+</code></pre>
+<pre><code>AnnData object with n_obs × n_vars = 3696 × 2000
+    obs: 'clusters_coarse', 'clusters', 'S_score', 'G2M_score', 'initial_size_unspliced', 'initial_size_spliced', 'initial_size', 'n_counts', 'velocity_self_transition'
+    var: 'highly_variable_genes', 'gene_count_corr', 'means', 'dispersions', 'dispersions_norm', 'highly_variable', 'velocity_gamma', 'velocity_qreg_ratio', 'velocity_r2', 'velocity_genes'
+    uns: 'clusters_coarse_colors', 'clusters_colors', 'day_colors', 'neighbors', 'pca', 'umap', 'log1p', 'velocity_params', 'velocity_graph', 'velocity_graph_neg'
+    obsm: 'X_pca', 'X_umap', 'velocity_umap'
+    layers: 'spliced', 'unspliced', 'Ms', 'Mu', 'velocity', 'variance_velocity'
+    obsp: 'distances', 'connectivities'
+</code></pre>
+<p>The velocity vectors have been successfully determined and are located in <code>obsm</code> as <code>velocity_umap</code>.</p>
+<p>Dash, which is used to create Cell Journey, has its limitations. Loading very large files can be automatically interrupted. Therefore, files for the Cell Journey analysis should be stripped of unnecessary data, especially large dense matrices. For the pancreas dataset it is sufficient to limit the data to what is contained in <code>var</code>, <code>obs</code>, <code>obsm</code>, and the sparse <code>X</code> matrix.</p>
+<pre><code>adata_slim = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var, obsm=adata.obsm)
+adata_slim.write(&quot;pancreas_slim.h5ad)
+</code></pre>
+<p>For comparison, we can also save the entire adata dataset.</p>
+<pre><code>adata.write(&quot;pancreas_full.h5ad&quot;)
+</code></pre>
+<pre><code>full_dataset = os.stat(&quot;pancreas_full.h5ad&quot;)
+full_dataset_size = full_dataset.st_size / (1024 ** 2)
+slim_dataset = os.stat(&quot;pancreas_slim.h5ad&quot;)
+slim_dataset_size = slim_dataset.st_size / (1024 ** 2)
+print(f&quot;Full dataset: {full_dataset_size:.2f} MB, slim dataset: {slim_dataset_size:.2f} MB&quot;)
+</code></pre>
+<pre><code>Full dataset: 1756.84 MB, slim dataset: 14.64 MB
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="usage.html" class="btn btn-neutral float-left" title="Usage"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="support.html" class="btn btn-neutral float-right" title="Support">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="usage.html" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="support.html" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
