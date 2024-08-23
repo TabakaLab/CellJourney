@@ -101,6 +101,9 @@
                 <h2 id="usage">Usage</h2>
 <h3 id="upload-data-and-select-features">Upload data and select features</h3>
 <p>To upload a dataset, use the <code>Drag and drop or select a file to upload</code> button and then click on <code>Upload data</code>. After the data is uploaded correctly, a confirmation message will appear. If the uploaded data is not normalized, an additional window will appear that will allow you to do so. Next, select the appropriate features with cell coordinates and the corresponding velocity vector components. Click on the <code>Submit selected features button</code> to confirm your selection. The Scatter Plot and Cone Plot sections will update automatically.</p>
+<p><strong>Very important!</strong> When uploading your data, ensure it is located in the same directory as the celljourney.py file (the framework Cell Journey is based on cannot get the uploaded data's full path). To overcome this limitation, you can use the <code>--file</code> flag when running the software, e.g.</p>
+<pre><code>python celljourney.py --file=/data/projects/sequencing/file.h5ad
+</code></pre>
 <h3 id="global-plot-configuration">Global plot configuration</h3>
 <p>This section allows global customization of the Cell Journey visualizations.</p>
 <p><code>Show features on hover</code> - information about the cell to be displayed when the cursor hovers over it. This is an experimental functionality and may e.g. noticeably slow down the program, mainly when applied to many features.</p>
