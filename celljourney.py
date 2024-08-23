@@ -1,26 +1,17 @@
-# pycodestyle --show-source --show-pep8 cell.py > pep8.txt
-
 import dash
 import dash_mantine_components as dmc
 import dash_bootstrap_components as dbc
-from dash_iconify import DashIconify
 from dash.exceptions import PreventUpdate
-from dash import html, dcc, callback_context, callback, Input, Output, State, ctx
+from dash import html, dcc, callback, Input, Output, State, ctx
 
 import re
-import json
-import base64
-import muon as mu
 import mudata as md
 import numpy as np
-import h5py
-import io
 import os
 import pandas as pd
 import scanpy as sc
 import argparse
 import progressbar
-import pickle
 import plotly.express as px
 import warnings
 import logging
@@ -29,10 +20,8 @@ from plotly.subplots import make_subplots
 from scipy.interpolate import interpn, interp1d
 from scipy.spatial import KDTree
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 from sklearn.exceptions import ConvergenceWarning
 from random import sample
-from base64 import b64encode
 from coloraide import Color
 from src.layout import layout
 from src.parameters import *
@@ -46,10 +35,8 @@ parser.add_argument("--debug", type=bool, default=False)
 parser.add_argument("--file", type=str, default="___")
 args = parser.parse_args()
 
-#if not os.path.exists("./saved_figures"):
 os.makedirs("./saved_figures", exist_ok=True)
 os.makedirs("./saved_tables", exist_ok=True)
-
 
 df = None
 chunks = None
