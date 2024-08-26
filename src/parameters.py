@@ -112,7 +112,22 @@ QUALITATIVE_COLORS = {
         "#FDD9B5","#000000","#1F75FE","#0D98BA","#7366BD","#B4674D","#FFAACC","#1DACD6",
         "#FDDB6D","#95918C","#1CAC78","#F0E891","#5D76CB","#FF7538","#EE204D","#FF5349",
         "#C0448F","#FC2847","#926EAE","#F75394","#FFFFFF","#FCE883","#C5E384","#FFAE42"
+    ],
+    "Tab10": [
+        '#1a62a5', '#fd6910', '#289322', '#cb111e', '#814eaf', '#79433a', '#da5db6',
+        '#6c6c6c', '#afb31c', '#1eb2c5'
+    ],
+    "Tab15": [
+        '#102a93', '#6972ad', '#b0b3ca', '#ccacb3', '#ab6171', '#7a002d', '#3a55da', 
+        '#727fda', '#a7a9da', '#df9dac', '#d8637e', '#c72558', '#2abe2c', '#7dcf81', 
+        '#bbd8bc',
+    ],
+    "Tab20": [
+        '#1a62a5', '#a0bae2', '#fd6910', '#fdac65', '#289322', '#89db77', '#cb111e', 
+        '#fc8384', '#814eaf', '#b99fcb', '#79433a', '#b68982', '#da5db6', '#f4a4c8',
+        '#6c6c6c', '#bbbbbb', '#afb31c', '#d4d57a', '#1eb2c5', '#8ed3de'
     ]
+    
 }
 
 QUALITATIVE_COLOR_NAMES = list(QUALITATIVE_COLORS.keys())

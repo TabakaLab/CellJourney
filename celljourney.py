@@ -25,6 +25,7 @@ from random import sample
 from coloraide import Color
 from src.layout import layout
 from src.parameters import *
+import pickle
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -778,49 +779,54 @@ def feature_histogram(_, reverse_switch, color_palette, quantiles):
 
     if any([element is None for element in [df, feature_distribution]]):
         raise PreventUpdate
+    elif color_palette == "":
+        raise PreventUpdate
 
     if not pd.api.types.is_numeric_dtype(feature_distribution):
         return {"display": "none"}, go.Figure()
     else:
-        fig = go.Figure(
-            data=go.Histogram(
-                x=feature_distribution,
-                nbinsx=30,
-                marker=dict(color="black")
-            ),
-            layout_xaxis_range=[min(feature_distribution),
-                                max(feature_distribution)]
-        )
-        if color_palette is not None and quantiles is not None:
-            colors = color_palette.split(" ")
-            if reverse_switch:
-                colors = colors[::-1]
-            fig.add_vline(
-                x=min(feature_distribution),
-                line_width=3,
-                opacity=1,
-                line_color=colors[0])
-            for i, quantile in enumerate(quantiles):
+        try:
+            fig = go.Figure(
+                data=go.Histogram(
+                    x=feature_distribution,
+                    nbinsx=30,
+                    marker=dict(color="black")
+                ),
+                layout_xaxis_range=[min(feature_distribution),
+                                    max(feature_distribution)]
+            )
+            if color_palette is not None and quantiles is not None:
+                colors = color_palette.split(" ")
+                if reverse_switch:
+                    colors = colors[::-1]
                 fig.add_vline(
-                    x=quantile*(max(feature_distribution) -
-                                min(feature_distribution)) + min(feature_distribution),
+                    x=min(feature_distribution),
                     line_width=3,
                     opacity=1,
-                    line_dash="dot",
-                    line_color=colors[i])
-            fig.add_vline(
-                x=max(feature_distribution),
-                line_width=3,
-                opacity=1,
-                line_color=colors[-1])
-        fig.update_yaxes(visible=False)
-        fig.update_layout(
-            margin=ZERO_MARGIN_PLOT,
-            template=DEFAULT_TEMPLATE,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        return {"width": "96%", "height": "10vh", 'display': 'block'}, fig
+                    line_color=colors[0])
+                for i, quantile in enumerate(quantiles):
+                    fig.add_vline(
+                        x=quantile*(max(feature_distribution) -
+                                    min(feature_distribution)) + min(feature_distribution),
+                        line_width=3,
+                        opacity=1,
+                        line_dash="dot",
+                        line_color=colors[i])
+                fig.add_vline(
+                    x=max(feature_distribution),
+                    line_width=3,
+                    opacity=1,
+                    line_color=colors[-1])
+            fig.update_yaxes(visible=False)
+            fig.update_layout(
+                margin=ZERO_MARGIN_PLOT,
+                template=DEFAULT_TEMPLATE,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            return {"width": "96%", "height": "10vh", 'display': 'block'}, fig
+        except:
+            raise PreventUpdate
 
 
 @app.callback(
@@ -1065,17 +1071,23 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
     global data_type
     if any([element is None for element in [submitted, df, x, y, z]]):
         raise PreventUpdate
+    elif any([element == "" for element in [point_size, opacity]]):
+        raise PreventUpdate
+
     if general_or_modality == "single_modality" and scatter_h5ad_var is not None:
         temp_var_name = f"{scatter_h5ad_var}"
         expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
         expression_array = [item[0] for item in expression_array]
         temp_pd = pd.DataFrame({temp_var_name: expression_array})
         temp_df = pd.concat([df, temp_pd], axis=1)
-        fig_data = scatter_plot_data_generator(
-            temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-            scatter_color, scatter_select_color_type, temp_var_name, show_legend, hover_data,
-            hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, x, y, z, False, colorscale_quantiles
-        )
+        try:
+            fig_data = scatter_plot_data_generator(
+                temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                scatter_color, scatter_select_color_type, temp_var_name, show_legend, hover_data,
+                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, x, y, z, False, colorscale_quantiles
+            )
+        except:
+            raise PreventUpdate
     elif general_or_modality == "modality" and scatter_modality_var is not None:
         temp_var_name = f"{modality}: {scatter_modality_var}"
         expression_array = h5_file[modality][:,
@@ -1083,18 +1095,24 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
         expression_array = [item[0] for item in expression_array]
         temp_pd = pd.DataFrame({temp_var_name: expression_array})
         temp_df = pd.concat([df, temp_pd], axis=1)
-        fig_data = scatter_plot_data_generator(
-            temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-            scatter_color, scatter_select_color_type, temp_var_name, show_legend, hover_data,
-            hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, x, y, z, False, colorscale_quantiles
-        )
+        try:
+            fig_data = scatter_plot_data_generator(
+                temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                scatter_color, scatter_select_color_type, temp_var_name, show_legend, hover_data,
+                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, x, y, z, False, colorscale_quantiles
+            )
+        except:
+            raise PreventUpdate
     else:
-        fig_data = scatter_plot_data_generator(
-            df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-            scatter_color, scatter_select_color_type, scatter_feature, show_legend, hover_data,
-            hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, x, y, z,
-            feature_is_qualitative, colorscale_quantiles
-        )
+        try:
+            fig_data = scatter_plot_data_generator(
+                df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                scatter_color, scatter_select_color_type, scatter_feature, show_legend, hover_data,
+                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, x, y, z,
+                feature_is_qualitative, colorscale_quantiles
+            )
+        except:
+            raise PreventUpdate
 
     fig = go.FigureWidget(data=fig_data)
     fig.layout.uirevision = True
@@ -1146,6 +1164,9 @@ def plot_cone(submitted, cone_size, opacity, colorscale, theme, show_ticks_cone,
     global df
     if any([element is None for element in [submitted, df, x, y, z, u, v, w]]):
         raise PreventUpdate
+    elif any([element == "" for element in [cone_size, opacity]]):
+        raise PreventUpdate
+
     else:
         fig_data = go.Cone(
             x=df[x],
@@ -1488,6 +1509,8 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
     global h5_file
     global data_type
     if any(element is None for element in [df, trajectory_type, trajectories, grid_trajectories]):
+        raise PreventUpdate
+    elif any([element == "" for element in [width, opacity, point_size, scatter_opacity]]):
         raise PreventUpdate
 
     fig_data = []
@@ -1872,6 +1895,15 @@ def show_additional_plots(selected_cell, theme, color_scale, heatmap_colorscale,
 
         heatmap_data = pd.read_json(heatmap_data)
 
+        cluster_means = heatmap_data.groupby('cluster').mean()
+        cluster_max_segment = cluster_means.idxmax(axis=1)
+        sorted_clusters = cluster_max_segment.sort_values()
+        cluster_mapping = {old: new for new, old in enumerate(sorted_clusters.index)}
+        heatmap_data['new_cluster'] = heatmap_data['cluster'].map(cluster_mapping)
+        heatmap_data = heatmap_data.sort_values('new_cluster')
+        heatmap_data = heatmap_data.drop(columns=['cluster']).rename(columns={'new_cluster': 'cluster'})
+
+        pickle.dump(heatmap_data, open('heatmap_data.pkl', 'wb'))
         main_heatmap = go.Heatmap(
                 z=heatmap_data.loc[:, heatmap_data.columns != "cluster"],
                 colorscale=heatmap_colorscale,
@@ -1963,9 +1995,11 @@ def show_additional_plots(selected_cell, theme, color_scale, heatmap_colorscale,
     State("cj_modal", "is_open"),
     State("cells_and_segments", "data"),
     State("scatter_modality", "value"),
+    State("heatmap_popover_remove_zeros", "checked"),
+    State("heatmap_popover_show_trend_line", "checked"),
     prevent_initial_call=True
 )
-def show_heatmap_popover(selected_cell, open_state, tube_cells, modality):
+def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove_zeros, show_trend):
     global h5_file
     global single_trajectory
     global data_type
@@ -1986,12 +2020,26 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality):
             expression = h5_file[modality][indices, selected_cell["points"][0]["y"]].X.todense().tolist()
 
         final_df["Expression"] = sum(expression, [])
-        fig_px = px.strip(
-            final_df,
-            x="Segment",
-            y="Expression",
-            template="simple_white",
-        )
+        
+        if remove_zeros:
+            final_df = final_df[final_df["Expression"] > 0]
+
+        if show_trend:
+            fig_px = px.scatter(
+                final_df,
+                x="Segment",
+                y="Expression",
+                template="simple_white",
+                trendline="lowess",
+                trendline_color_override="red"
+            )
+        else:
+            fig_px = px.scatter(
+                final_df,
+                x="Segment",
+                y="Expression",
+                template="simple_white",
+            )
         fig_px.update_layout(
             xaxis = dict(
                 tickmode = 'array',
@@ -2062,6 +2110,8 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
     global df
 
     if any([element is None for element in [df, x, y, z, grid_cj]]) or not grid_is_generated:
+        raise PreventUpdate
+    elif any([element == "" for element in [trajectory_width, trajectory_opacity, opacity, point_size]]):
         raise PreventUpdate
 
     if cells_and_segments is not None:

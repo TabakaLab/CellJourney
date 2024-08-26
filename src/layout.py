@@ -62,11 +62,12 @@ upload_data_accordion = dmc.Accordion(
                                         dbc.Col(
                                             [
                                                 dmc.Select(
-                                                placeholder="X", 
-                                                id="select_x",
-                                                searchable=True,
-                                                icon=DashIconify(icon="ph:chart-scatter-light"), 
-                                                style=SELECT_STYLE,
+                                                    placeholder="X", 
+                                                    id="select_x",
+                                                    searchable=True,
+                                                    icon=DashIconify(icon="ph:chart-scatter-light"), 
+                                                    style=SELECT_STYLE,
+                                                    value="X_umap (1)"
                                                 ),
                                                 dmc.Select(
                                                     placeholder="Y", 
@@ -74,6 +75,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon="ph:chart-scatter-light"), 
                                                     style=SELECT_STYLE,
+                                                    value="X_umap (2)"
                                                 ),
                                                 dmc.Select(
                                                     placeholder="Z",
@@ -81,6 +83,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon="ph:chart-scatter-light"),
                                                     style=SELECT_STYLE,
+                                                    value="X_umap (3)"
                                                 ),
                                             ],
                                         ),
@@ -92,6 +95,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon="ph:arrows-out-cardinal-thin"),
                                                     style=SELECT_STYLE,
+                                                    value="velocity_umap (1)"
                                                 ),
                                                 dmc.Select(
                                                     placeholder="V (velocity for Y)",
@@ -99,6 +103,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon="ph:arrows-out-cardinal-thin"),
                                                     style=SELECT_STYLE,
+                                                    value="velocity_umap (2)"
                                                 ),
                                                 dmc.Select(
                                                     placeholder="W (velocity for W)",
@@ -106,6 +111,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon="ph:arrows-out-cardinal-thin"),
                                                     style=SELECT_STYLE,
+                                                    value="velocity_umap (3)"
                                                 ),
                                             ]
                                         )
@@ -365,7 +371,18 @@ plot_accordion = dmc.Accordion(
                                 dmc.MultiSelect(
                                     id="scatter_hover_features", 
                                     placeholder="Select features",
-                                    label="Show features on hover",
+                                    label=dmc.Tooltip(
+                                        "Show features on hover",
+                                        label="This is an experimental feature and may not work properly under some conditions. \
+                                            Use it with caution. It is recommended to combine it with a single color plot, \
+                                            in extremis with a continuous palette.",
+                                        color="gray",
+                                        width=450,
+                                        openDelay=50,
+                                        closeDelay=500,
+                                        transition="slide-right",
+                                        multiline=True
+                                    ),
                                     value=[],
                                     searchable=True
                                 ),
@@ -1104,7 +1121,7 @@ cell_journey_accordion = dmc.Accordion(
                                 dmc.NumberInput(
                                     id="cj_radius", 
                                     min=0.00,
-                                    value=100,
+                                    value=1,
                                     precision=3,
                                     step=1,
                                     label="Tube radius",
@@ -1161,6 +1178,28 @@ cell_journey_accordion = dmc.Accordion(
                                 dmc.Switch(
                                     id="heatmap_colorscale_reversed",
                                     label="Color scale in reversed direction",
+                                    size="sm",
+                                    color=SWITCH_COLOR,
+                                    onLabel="ON",
+                                    offLabel="OFF"
+                                ),
+                                dmc.Space(h=5),
+                                dmc.Divider(
+                                    label="Heatmap popover",
+                                    labelPosition="center",
+                                ),
+                                dmc.Switch(
+                                    id="heatmap_popover_remove_zeros",
+                                    label="Remove zeros",
+                                    size="sm",
+                                    color=SWITCH_COLOR,
+                                    onLabel="ON",
+                                    offLabel="OFF"
+                                ),
+                                dmc.Space(h=5),
+                                dmc.Switch(
+                                    id="heatmap_popover_show_trend_line",
+                                    label="Show trend line",
                                     size="sm",
                                     color=SWITCH_COLOR,
                                     onLabel="ON",
