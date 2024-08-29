@@ -1205,6 +1205,15 @@ cell_journey_accordion = dmc.Accordion(
                                     onLabel="ON",
                                     offLabel="OFF"
                                 ),
+                                dmc.Space(h=5),
+                                dmc.Switch(
+                                    id="heatmap_popover_add_jitter",
+                                    label="Add jitter",
+                                    size="sm",
+                                    color=SWITCH_COLOR,
+                                    onLabel="ON",
+                                    offLabel="OFF"
+                                ),
                                 dbc.Modal(
                                     id="cj_modal",
                                     size="lg",
@@ -1248,6 +1257,28 @@ Main features:
         ),
         dmc.AccordionItem(
             [
+                dmc.AccordionControl("Where can I find the documentation"),
+                dmc.AccordionPanel(
+                    dcc.Markdown(
+'''The full documentation can be found at https://tabakalab.github.io/CellJourney/'''
+                )
+                ),
+            ],
+            value="11",
+        ),
+        dmc.AccordionItem(
+            [
+                dmc.AccordionControl("How can I manipulate the plots"),
+                dmc.AccordionPanel(
+                    dcc.Markdown(
+'''To change the view angle, hold down the left mouse button. To move the entire graph, hold down the right mouse button or left mouse button + ctrl. To zoom in/out use mouse scroll or left mouse button + alt.'''
+                )
+                ),
+            ],
+            value="12",
+        ),
+        dmc.AccordionItem(
+            [
                 dmc.AccordionControl("My filetype is not supported"),
                 dmc.AccordionPanel(
                     dcc.Markdown(
@@ -1285,7 +1316,7 @@ This will ensure that all variables that were used by Cell Journey in the previo
                 dmc.AccordionPanel(
                     dcc.Markdown(
 '''If you are doing larger calculations, Cell Journey may need more time. 
-If the tool is working, the title of the card where Cell Journey is running should be *Updating*'''
+If the tool is working, the title of the card where Cell Journey is running should be *Updating*. In some cases, Cell Journey does not respond because it cannot meet certain conditions, e.g. the clustering of 10 features into 20 groups.'''
                     )
                 ),
             ],

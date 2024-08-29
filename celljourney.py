@@ -1237,6 +1237,9 @@ def calculate_trajectories(submitted, updated, subset, reset, n_grid, n_steps, d
     global chunks
     if any([element is None for element in [df, x, y, z, u, v, w]]):
         raise PreventUpdate
+    
+    if any(element == "" for element in [n_grid, n_steps, dt, diff, chunk_size, scale]):
+        raise PreventUpdate
 
     button_id = ctx.triggered_id
 
@@ -1717,6 +1720,9 @@ def generate_single_cell_trajectory(
 
     if ctx.triggered_id == "cj_scatter_plot" and block_new_trajectory:
         raise PreventUpdate
+    
+    if any(element == "" for element in [tube_segments, tube_radius, n_genes, n_steps, dt, diff, scale, k]):
+        raise PreventUpdate
 
     if ctx.triggered_id == "cj_select_trajectory" and selected_trajectory is not None:
         single_trajectory = trajectories[selected_trajectory]
@@ -1854,8 +1860,6 @@ def generate_single_cell_trajectory(
     Output("cj_x_plot", "figure"),
     Output("cj_y_plot", "figure"),
     Input("cj_placeholder_2", "children"),
-    Input("general_theme", "value"),
-    Input("trajectory_colorscale", "value"),
     Input("heatmap_colorscale", "value"),
     Input("heatmap_colorscale_reversed", "checked"),
     Input("n_genes", "value"),
@@ -1863,11 +1867,12 @@ def generate_single_cell_trajectory(
     State("scatter_modality", "value"),
     State("cells_per_segment", "data"),
     State("heatmap_data", "data"),
+    State("heatmap_method", "value"),
     prevent_initial_call=True
 )
-def show_additional_plots(selected_cell, theme, color_scale, heatmap_colorscale,
+def show_additional_plots(selected_cell, heatmap_colorscale,
                           heatmap_colorscale_reversed, n_genes, n_segments, 
-                          selected_modality, cells_per_segment, heatmap_data):
+                          selected_modality, cells_per_segment, heatmap_data, method):
     global data_type
 
     empty_plot = go.Figure(
@@ -1887,6 +1892,9 @@ def show_additional_plots(selected_cell, theme, color_scale, heatmap_colorscale,
 
     if data_type == "h5mu" and selected_modality is None:
         raise PreventUpdate
+    
+    if any(element == "" for element in [n_segments, n_genes]):
+        raise PreventUpdate
 
     if selected_cell is not None:
         global single_trajectory
@@ -1895,20 +1903,37 @@ def show_additional_plots(selected_cell, theme, color_scale, heatmap_colorscale,
 
         heatmap_data = pd.read_json(heatmap_data)
 
-        cluster_means = heatmap_data.groupby('cluster').mean()
-        cluster_max_segment = cluster_means.idxmax(axis=1)
-        sorted_clusters = cluster_max_segment.sort_values()
-        cluster_mapping = {old: new for new, old in enumerate(sorted_clusters.index)}
-        heatmap_data['new_cluster'] = heatmap_data['cluster'].map(cluster_mapping)
-        heatmap_data = heatmap_data.sort_values('new_cluster')
-        heatmap_data = heatmap_data.drop(columns=['cluster']).rename(columns={'new_cluster': 'cluster'})
-
-        pickle.dump(heatmap_data, open('heatmap_data.pkl', 'wb'))
+        if method == "absolute":
+            cluster_means = heatmap_data.groupby('cluster').mean()
+            max_segment_index = cluster_means.idxmax(axis=1)
+            heatmap_data["gene"] = heatmap_data.index
+            heatmap_data = heatmap_data.set_index('cluster').loc[max_segment_index.sort_values().index].reset_index()
+            heatmap_data = heatmap_data.set_index('gene')
+            heatmap_data = heatmap_data.loc[:, heatmap_data.columns != "gene"]
+            
+        else:
+            heatmap_data['total_expression'] = heatmap_data.iloc[:, :-1].sum(axis=1)
+            heatmap_data['gene'] = heatmap_data.index
+            cluster_means = heatmap_data.groupby('cluster')['total_expression'].mean()
+            positive_clusters = cluster_means[cluster_means >= 0].index
+            negative_clusters = cluster_means[cluster_means < 0].index
+            positive_clusters = positive_clusters[cluster_means[positive_clusters].argsort()]
+            negative_clusters = negative_clusters[cluster_means[negative_clusters].argsort()[::-1]]
+            new_cluster_order = np.concatenate([negative_clusters, positive_clusters])
+            heatmap_data = heatmap_data.set_index('cluster').loc[new_cluster_order].reset_index()
+            heatmap_data = heatmap_data.set_index("gene")
+            heatmap_data = heatmap_data.iloc[:,:-2]
+        
+        rename_dict = dict(zip(list(set(heatmap_data["cluster"])), 
+                                list(dict.fromkeys(list(heatmap_data["cluster"])))))
+        new_order = [rename_dict[cluster] for cluster in list(heatmap_data["cluster"])]
+        heatmap_data["cluster"] = new_order
+        
         main_heatmap = go.Heatmap(
                 z=heatmap_data.loc[:, heatmap_data.columns != "cluster"],
                 colorscale=heatmap_colorscale,
                 colorbar=dict(
-                    orientation='h',
+                    orientation='h',    
                     x=0.57,
                     y=0.99,
                     outlinewidth=0,
@@ -1941,22 +1966,22 @@ def show_additional_plots(selected_cell, theme, color_scale, heatmap_colorscale,
         heatmap.add_trace(side_heatmap, row=1, col=2)
         heatmap.add_trace(main_heatmap, row=1, col=3)
 
-        current_position = 0
-        total_size = heatmap_data["cluster"].value_counts().sum()
-        for i, size in enumerate(heatmap_data["cluster"].value_counts().sort_index()):
-            cluster_center = current_position + size / 2
-            heatmap.add_annotation(
-                x=-1,
-                y=total_size - cluster_center - 0.5,
-                text=str(i+1),
-                showarrow=False,
-                font=dict(color="black"),
-                xref="x2",
-                yref="y2",
-                xanchor="right",
-                yanchor="middle"
-            )
-            current_position += size
+        # current_position = 0
+        # total_size = heatmap_data["cluster"].value_counts().sum()
+        # for i, size in enumerate(heatmap_data["cluster"].value_counts().sort_index()):
+        #     cluster_center = current_position + size / 2
+        #     heatmap.add_annotation(
+        #         x=-1,
+        #         y=total_size - cluster_center - 0.5,
+        #         text=str(i+1),
+        #         showarrow=False,
+        #         font=dict(color="black"),
+        #         xref="x2",
+        #         yref="y2",
+        #         xanchor="right",
+        #         yanchor="middle"
+        #     )
+        #     current_position += size
 
         heatmap.update_layout(
             template="simple_white",
@@ -1988,6 +2013,7 @@ def show_additional_plots(selected_cell, theme, color_scale, heatmap_colorscale,
     else:
         return empty_plot, empty_plot
 
+
 @app.callback(
     Output("cj_modal", "children"),
     Output("cj_modal", "is_open"),
@@ -1997,9 +2023,10 @@ def show_additional_plots(selected_cell, theme, color_scale, heatmap_colorscale,
     State("scatter_modality", "value"),
     State("heatmap_popover_remove_zeros", "checked"),
     State("heatmap_popover_show_trend_line", "checked"),
+    State("heatmap_popover_add_jitter", "checked"),
     prevent_initial_call=True
 )
-def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove_zeros, show_trend):
+def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove_zeros, show_trend, add_jitter):
     global h5_file
     global single_trajectory
     global data_type
@@ -2023,6 +2050,8 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
         
         if remove_zeros:
             final_df = final_df[final_df["Expression"] > 0]
+        if add_jitter:
+            final_df.Segment += np.random.normal(0, 0.2, len(final_df.Segment))
 
         if show_trend:
             fig_px = px.scatter(
@@ -2102,7 +2131,8 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
                     trajectory_colorscale, reversed, show_ticks_trajectories, legend_leftright, legend_topbottom,
                     show_legend, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles, 
                     tube_points_indices, highlight_tube_cells, tube_cells_color, tube_cells_size, custom_colorscale_switch,
-                    reverse_colorscale_switch, custom_colorscale, modality, x, y, z, feature_is_qualitative,
+                    reverse_colorscale_switch, 
+                    custom_colorscale, modality, x, y, z, feature_is_qualitative,
                     general_or_modality, cells_and_segments):
 
     global single_trajectory
@@ -2111,7 +2141,7 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
 
     if any([element is None for element in [df, x, y, z, grid_cj]]) or not grid_is_generated:
         raise PreventUpdate
-    elif any([element == "" for element in [trajectory_width, trajectory_opacity, opacity, point_size]]):
+    elif any([element == "" for element in [trajectory_width, trajectory_opacity, opacity, point_size, tube_cells_size]]):
         raise PreventUpdate
 
     if cells_and_segments is not None:
