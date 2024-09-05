@@ -1558,6 +1558,7 @@ layout = html.Div(
         dcc.Store(id='streamlines_indices'),
         dcc.Store(id="streamlets_indices"),
         dcc.Store(id="heatmap_data"),
+        dcc.Store(id="heatmap_data_final"),
         dcc.Store(id="hover_data_storage"),
         dcc.Store(id="tube_points_indices"),
         dcc.Store(id="custom_color_palette"),

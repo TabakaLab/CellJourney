@@ -26,7 +26,7 @@ from coloraide import Color
 from src.layout import layout
 from src.parameters import *
 import pickle
-
+pd.options.mode.chained_assignment = None 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings('error',category=ConvergenceWarning, module='sklearn')
@@ -360,7 +360,7 @@ def save_figure(clicked, scatter_plot, cone_plot, trajectories_plot, single_traj
     Output("save_table_callback", "children"),
     Input("submit_download_table", "n_clicks"),
     State("cells_and_segments", "data"),
-    State("heatmap_data", "data"),
+    State("heatmap_data_final", "data"),
     State("select_table", "value"),
     State("save_filename_table", "value"),
     State("scatter_modality", "value"),
@@ -375,7 +375,7 @@ def save_csv_table(_, tube_cells, heatmap, selected_table, filename, modality):
                 heatmap_data = pd.read_json(heatmap)
             except:
                 raise PreventUpdate
-            heatmap_data.to_csv(f"saved_tables/{filename}.csv")
+            heatmap_data.iloc[::-1].to_csv(f"saved_tables/{filename}.csv")
         elif selected_table == "Trajectory cells barcodes":
             try:
                 tube_cells_data = pd.read_json(tube_cells)
@@ -1723,6 +1723,9 @@ def generate_single_cell_trajectory(
     
     if any(element == "" for element in [tube_segments, tube_radius, n_genes, n_steps, dt, diff, scale, k]):
         raise PreventUpdate
+    
+    if any(element == 0 for element in [tube_segments, tube_radius, n_genes, n_steps, dt, diff, scale, k]):
+        raise PreventUpdate
 
     if ctx.triggered_id == "cj_select_trajectory" and selected_trajectory is not None:
         single_trajectory = trajectories[selected_trajectory]
@@ -1823,11 +1826,7 @@ def generate_single_cell_trajectory(
             dd_rel.loc[:, i] = dd.loc[:, i] - dd.loc[:, 0]
 
     if data_type == "h5ad" or (data_type == "h5mu" and selected_modality is not None):
-        # if heatmap_method == "absolute":
         fold_changes = dd.apply(lambda gene: np.log2(max(gene) + 1) - np.log2(min(gene) + 1), axis=1)
-        # elif heatmap_method == "relative":
-        #    fold_changes = dd_rel.apply(lambda gene: abs(max(gene) - min(gene)), axis=1)
-
         top_genes = list(fold_changes.sort_values(ascending=False)[:n_genes].index)
         top_genes_data = dd.loc[top_genes, :] if heatmap_method == "absolute" else dd_rel.loc[top_genes, :]
 
@@ -1846,8 +1845,8 @@ def generate_single_cell_trajectory(
         try:
             kmeans = KMeans(n_clusters=k).fit(top_genes_data.values)
         except:
-            print("Too many clusters or too few cells")
             raise PreventUpdate
+        
         top_genes_data.loc[:, "cluster"] = kmeans.labels_ + 1
         top_genes_data.sort_values("cluster", inplace=True, ascending=False)
 
@@ -1859,6 +1858,7 @@ def generate_single_cell_trajectory(
 @app.callback(
     Output("cj_x_plot", "figure"),
     Output("cj_y_plot", "figure"),
+    Output("heatmap_data_final", "data"),
     Input("cj_placeholder_2", "children"),
     Input("heatmap_colorscale", "value"),
     Input("heatmap_colorscale_reversed", "checked"),
@@ -1904,28 +1904,28 @@ def show_additional_plots(selected_cell, heatmap_colorscale,
         heatmap_data = pd.read_json(heatmap_data)
 
         if method == "absolute":
-            cluster_means = heatmap_data.groupby('cluster').mean()
-            max_segment_index = cluster_means.idxmax(axis=1)
-            heatmap_data["gene"] = heatmap_data.index
-            heatmap_data = heatmap_data.set_index('cluster').loc[max_segment_index.sort_values().index].reset_index()
-            heatmap_data = heatmap_data.set_index('gene')
-            heatmap_data = heatmap_data.loc[:, heatmap_data.columns != "gene"]
+            heatmap_data['max_segment'] = heatmap_data.iloc[:, :-1].idxmax(axis=1).map(int)
+            segment_means = heatmap_data.groupby('cluster')['max_segment'].mean()
+            heatmap_data['mean_max_segment'] = heatmap_data['cluster'].map(segment_means)
+            heatmap_data = heatmap_data.sort_values(by='mean_max_segment', ascending=False)
+            heatmap_data = heatmap_data.iloc[:,:-2]
             
         else:
             heatmap_data['total_expression'] = heatmap_data.iloc[:, :-1].sum(axis=1)
-            heatmap_data['gene'] = heatmap_data.index
             cluster_means = heatmap_data.groupby('cluster')['total_expression'].mean()
-            positive_clusters = cluster_means[cluster_means >= 0].index
-            negative_clusters = cluster_means[cluster_means < 0].index
-            positive_clusters = positive_clusters[cluster_means[positive_clusters].argsort()]
-            negative_clusters = negative_clusters[cluster_means[negative_clusters].argsort()[::-1]]
-            new_cluster_order = np.concatenate([negative_clusters, positive_clusters])
-            heatmap_data = heatmap_data.set_index('cluster').loc[new_cluster_order].reset_index()
-            heatmap_data = heatmap_data.set_index("gene")
-            heatmap_data = heatmap_data.iloc[:,:-2]
-        
-        rename_dict = dict(zip(list(set(heatmap_data["cluster"])), 
-                                list(dict.fromkeys(list(heatmap_data["cluster"])))))
+            heatmap_data['max_segment'] = np.abs(heatmap_data.iloc[:, :-2]).idxmax(axis=1).map(int)
+            segment_means = heatmap_data.groupby('cluster')['max_segment'].mean()
+            heatmap_data['mean_expression'] = heatmap_data['cluster'].map(cluster_means)
+            heatmap_data['mean_max_segment'] = heatmap_data['cluster'].map(segment_means)
+            positive_clusters = heatmap_data[heatmap_data["mean_expression"] >= 0]
+            negative_clusters = heatmap_data[heatmap_data["mean_expression"] < 0]
+            positive_clusters = positive_clusters.sort_values(by='mean_max_segment', ascending=False)
+            negative_clusters = negative_clusters.sort_values(by='mean_max_segment', ascending=True)
+            heatmap_data = pd.concat([negative_clusters, positive_clusters])
+            heatmap_data = heatmap_data.iloc[:,:-4]
+
+        rename_dict = dict(zip(list(dict.fromkeys(list(heatmap_data["cluster"]))), 
+                               list(set(heatmap_data["cluster"]))[::-1]))
         new_order = [rename_dict[cluster] for cluster in list(heatmap_data["cluster"])]
         heatmap_data["cluster"] = new_order
         
@@ -1966,22 +1966,22 @@ def show_additional_plots(selected_cell, heatmap_colorscale,
         heatmap.add_trace(side_heatmap, row=1, col=2)
         heatmap.add_trace(main_heatmap, row=1, col=3)
 
-        # current_position = 0
-        # total_size = heatmap_data["cluster"].value_counts().sum()
-        # for i, size in enumerate(heatmap_data["cluster"].value_counts().sort_index()):
-        #     cluster_center = current_position + size / 2
-        #     heatmap.add_annotation(
-        #         x=-1,
-        #         y=total_size - cluster_center - 0.5,
-        #         text=str(i+1),
-        #         showarrow=False,
-        #         font=dict(color="black"),
-        #         xref="x2",
-        #         yref="y2",
-        #         xanchor="right",
-        #         yanchor="middle"
-        #     )
-        #     current_position += size
+        current_position = 0
+        total_size = heatmap_data["cluster"].value_counts().sum()
+        for i, size in enumerate(heatmap_data["cluster"].value_counts().sort_index()):
+            cluster_center = current_position + size / 2
+            heatmap.add_annotation(
+                x=-1,
+                y=total_size - cluster_center - 0.5,
+                text=str(i+1),
+                showarrow=False,
+                font=dict(color="black"),
+                xref="x2",
+                yref="y2",
+                xanchor="right",
+                yanchor="middle"
+            )
+            current_position += size
 
         heatmap.update_layout(
             template="simple_white",
@@ -2009,9 +2009,9 @@ def show_additional_plots(selected_cell, heatmap_colorscale,
                 margin=dict(l=34, r=0, t=0, b=0)
             )
         )
-        return heatmap, barplot
+        return heatmap, barplot, heatmap_data.to_json()
     else:
-        return empty_plot, empty_plot
+        return empty_plot, empty_plot, heatmap_data.to_json()
 
 
 @app.callback(
