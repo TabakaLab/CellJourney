@@ -64,7 +64,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    # value='X_umap (1)'
+                                                    value='X_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     placeholder='Y', 
@@ -72,7 +72,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    # value='X_umap (2)'
+                                                    value='X_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     placeholder='Z',
@@ -80,7 +80,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'),
                                                     style=SELECT_STYLE,
-                                                    # value='X_umap (3)'
+                                                    value='X_umap (3)'
                                                 ),
                                             ],
                                         ),
@@ -92,7 +92,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    # value='velocity_umap (1)'
+                                                    value='velocity_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     placeholder='V (velocity for Y)',
@@ -100,7 +100,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    # value='velocity_umap (2)'
+                                                    value='velocity_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     placeholder='W (velocity for W)',
@@ -108,7 +108,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    # value='velocity_umap (3)'
+                                                    value='velocity_umap (3)'
                                                 ),
                                             ]
                                         )
@@ -1184,6 +1184,14 @@ cell_journey_accordion = dmc.Accordion(
                                     label='Heatmap popover',
                                     labelPosition='center',
                                 ),
+                                dmc.Space(h=5),
+                                dmc.Select(
+                                    id='heatmap_popover_plottype', 
+                                    data=['Strip plot', 'Box plot', 'Only averages'], 
+                                    value='Strip plot',
+                                    icon=DashIconify(icon='carbon:box-plot')
+                                ),
+                                dmc.Space(h=5),
                                 dmc.Switch(
                                     id='heatmap_popover_remove_zeros',
                                     label='Remove zeros',
@@ -1202,14 +1210,6 @@ cell_journey_accordion = dmc.Accordion(
                                     offLabel='OFF'
                                 ),
                                 dmc.Space(h=5),
-                                dmc.Switch(
-                                    id='heatmap_popover_add_jitter',
-                                    label='Add jitter',
-                                    size='sm',
-                                    color=SWITCH_COLOR,
-                                    onLabel='ON',
-                                    offLabel='OFF'
-                                ),
                                 dbc.Modal(
                                     id='cj_modal',
                                     size='lg',

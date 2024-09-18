@@ -38,8 +38,8 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 warnings.filterwarnings('error',category=ConvergenceWarning, module='sklearn')
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-os.makedirs('./{FIGURES_DIRECTORY}', exist_ok=True)
-os.makedirs('./{TABLES_DIRECTORY}', exist_ok=True)
+os.makedirs(f'./{FIGURES_DIRECTORY}', exist_ok=True)
+os.makedirs(f'./{TABLES_DIRECTORY}', exist_ok=True)
 
 df = None
 chunks = None
@@ -2013,10 +2013,11 @@ def show_additional_plots(selected_cell, heatmap_colorscale, heatmap_colorscale_
     State('scatter_modality', 'value'),
     State('heatmap_popover_remove_zeros', 'checked'),
     State('heatmap_popover_show_trend_line', 'checked'),
-    State('heatmap_popover_add_jitter', 'checked'),
+    State('heatmap_popover_plottype', 'value'),
+    
     prevent_initial_call=True
 )
-def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove_zeros, show_trend, add_jitter):
+def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove_zeros, show_trend, plottype):
     global h5_file
     global single_trajectory
     global data_type
@@ -2040,11 +2041,31 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
         
         if remove_zeros:
             final_df = final_df[final_df['Expression'] > 0]
-        if add_jitter:
-            final_df.Segment += np.random.normal(0, 0.2, len(final_df.Segment))
 
-        if show_trend:
+        if plottype == 'Strip plot':       
+            fig_px = px.strip(
+                final_df,
+                x='Segment',
+                y='Expression',
+            )
+        elif plottype == 'Box plot':
+            fig_px = px.box(
+                final_df,
+                x='Segment',
+                y='Expression',
+                points=False
+            )
+        else:
+            final_df_averages = final_df.groupby('Segment')['Expression'].mean()
+            final_df_averages = pd.DataFrame({'Segment': final_df_averages.index, 'Average expression': final_df_averages.values})
             fig_px = px.scatter(
+                final_df_averages,
+                x='Segment',
+                y='Average expression',
+            )
+            
+        if show_trend:
+            fig_px_trend = px.scatter(
                 final_df,
                 x='Segment',
                 y='Expression',
@@ -2052,20 +2073,22 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
                 trendline='lowess',
                 trendline_color_override='red'
             )
-        else:
-            fig_px = px.scatter(
-                final_df,
-                x='Segment',
-                y='Expression',
-                template='simple_white',
-            )
-        fig_px.update_layout(
+            fig_px_trend.data = fig_px_trend.data[1:]
+            fig_px_trend = go.Figure(fig_px_trend)
+
+        figure = go.Figure(data = fig_px.data + fig_px_trend.data) if show_trend else go.Figure(data = fig_px.data)
+
+        figure.update_layout(
+            template='simple_white',
+            xaxis_title='Segment',
+            yaxis_title='Expression',
+            margin=ZERO_MARGIN_PLOT,
             xaxis = dict(
                 tickmode = 'array',
                 tickvals = np.arange(1, max(tube_cells_data['segment___']) + 2)
             )
         )
-        figure = go.Figure(fig_px)
+
         popover = [
             dbc.ModalHeader(dbc.ModalTitle(selected_cell['points'][0]['y'])),
             dbc.ModalBody(dcc.Graph(figure=figure, config=NO_LOGO_DISPLAY)),
