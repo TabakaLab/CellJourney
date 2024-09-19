@@ -2012,12 +2012,12 @@ def show_additional_plots(selected_cell, heatmap_colorscale, heatmap_colorscale_
     State('cells_and_segments', 'data'),
     State('scatter_modality', 'value'),
     State('heatmap_popover_remove_zeros', 'checked'),
-    State('heatmap_popover_show_trend_line', 'checked'),
+    State('heatmap_trend_method', 'value'),
     State('heatmap_popover_plottype', 'value'),
     
     prevent_initial_call=True
 )
-def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove_zeros, show_trend, plottype):
+def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove_zeros, trend_type, plottype):
     global h5_file
     global single_trajectory
     global data_type
@@ -2064,19 +2064,38 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
                 y='Average expression',
             )
             
-        if show_trend:
+        if not (trend_type == 'none' or trend_type == 'meanspline' or trend_type == 'medianspline'):
             fig_px_trend = px.scatter(
                 final_df,
                 x='Segment',
                 y='Expression',
                 template='simple_white',
-                trendline='lowess',
-                trendline_color_override='red'
+                trendline=trend_type,
+                trendline_color_override='red',
             )
             fig_px_trend.data = fig_px_trend.data[1:]
             fig_px_trend = go.Figure(fig_px_trend)
 
-        figure = go.Figure(data = fig_px.data + fig_px_trend.data) if show_trend else go.Figure(data = fig_px.data)
+        if trend_type == 'meanspline' or trend_type == 'medianspline':
+            if trend_type == 'meanspline':
+                final_df_averages = final_df.groupby('Segment')['Expression'].mean()
+            else:
+                final_df_averages = final_df.groupby('Segment')['Expression'].median()
+            
+            final_df_averages = pd.DataFrame({'Segment': final_df_averages.index, 'Expression': final_df_averages.values})
+            fig_px_trend = go.Figure(
+                go.Scatter(
+                    x=final_df_averages['Segment'],
+                    y=final_df_averages['Expression'],
+                    mode='lines',
+                    line_shape='spline',
+                    line=dict(color='red'),
+                    name='Spline',
+                    showlegend=False
+                )
+            )
+
+        figure = go.Figure(data=fig_px.data + fig_px_trend.data) if trend_type != 'none' else go.Figure(data=fig_px.data)
 
         figure.update_layout(
             template='simple_white',
@@ -2084,8 +2103,8 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
             yaxis_title='Expression',
             margin=ZERO_MARGIN_PLOT,
             xaxis = dict(
-                tickmode = 'array',
-                tickvals = np.arange(1, max(tube_cells_data['segment___']) + 2)
+                tickmode='array',
+                tickvals=np.arange(1, max(tube_cells_data['segment___']) + 2)
             )
         )
 
