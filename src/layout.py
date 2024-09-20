@@ -64,7 +64,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    # value='X_umap (1)'
+                                                    value='X_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     placeholder='Y', 
@@ -72,7 +72,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    # value='X_umap (2)'
+                                                    value='X_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     placeholder='Z',
@@ -80,7 +80,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'),
                                                     style=SELECT_STYLE,
-                                                    # value='X_umap (3)'
+                                                    value='X_umap (3)'
                                                 ),
                                             ],
                                         ),
@@ -92,7 +92,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    # value='velocity_umap (1)'
+                                                    value='velocity_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     placeholder='V (velocity for Y)',
@@ -100,7 +100,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    # value='velocity_umap (2)'
+                                                    value='velocity_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     placeholder='W (velocity for W)',
@@ -108,7 +108,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    # value='velocity_umap (3)'
+                                                    value='velocity_umap (3)'
                                                 ),
                                             ]
                                         )
@@ -1199,7 +1199,7 @@ cell_journey_accordion = dmc.Accordion(
                                 dmc.Select(
                                     label='Plot type',
                                     id='heatmap_popover_plottype', 
-                                    data=['Strip plot', 'Box plot', 'Only averages'], 
+                                    data=['Strip plot', 'Box plot', 'Mean', 'Median'], 
                                     value='Strip plot',
                                     icon=DashIconify(icon='carbon:box-plot')
                                 ),
@@ -1209,11 +1209,13 @@ cell_journey_accordion = dmc.Accordion(
                                     id='heatmap_trend_method',
                                     value='none',
                                     data=[
-                                        {'value': 'none', 'label': "Don't show"},
-                                        {'value': 'ols', 'label': 'Ordinary least squares'},
-                                        {'value': 'lowess', 'label': 'LOWESS'},
+                                        {'value': 'none', 'label': "None"},
                                         {'value': 'meanspline', 'label': 'Mean-based cubic spline'},
-                                        {'value': 'medianspline', 'label': 'Median-based cubic spline'}
+                                        {'value': 'medianspline', 'label': 'Median-based cubic spline'},
+                                        {'value': 'ols', 'label': 'Ordinary least squares'},
+                                        {'value': 'lowess1', 'label': 'LOWESS (fine)'},
+                                        {'value': 'lowess5', 'label': 'LOWESS (medium)'},
+                                        {'value': 'lowess8', 'label': 'LOWESS (coarse)'},
                                     ],
                                     icon=DashIconify(icon='fluent:data-trending-48-regular')
                                 ),

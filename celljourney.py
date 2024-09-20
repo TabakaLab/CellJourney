@@ -2056,23 +2056,35 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
                 points=False
             )
         else:
-            final_df_averages = final_df.groupby('Segment')['Expression'].mean()
-            final_df_averages = pd.DataFrame({'Segment': final_df_averages.index, 'Average expression': final_df_averages.values})
+            final_df_averages = final_df.groupby('Segment')['Expression'].mean() if plottype == 'Mean' else final_df.groupby('Segment')['Expression'].median()
+            final_df_averages = pd.DataFrame({'Segment': final_df_averages.index, 'Expression': final_df_averages.values})
             fig_px = px.scatter(
                 final_df_averages,
                 x='Segment',
-                y='Average expression',
+                y='Expression',
             )
+            fig_px.update_traces(marker={'size': 10, 'symbol': 'x'})
             
         if not (trend_type == 'none' or trend_type == 'meanspline' or trend_type == 'medianspline'):
-            fig_px_trend = px.scatter(
-                final_df,
-                x='Segment',
-                y='Expression',
-                template='simple_white',
-                trendline=trend_type,
-                trendline_color_override='red',
-            )
+            if trend_type == "lowess1" or trend_type == "lowess5" or trend_type == "lowess8":
+                fig_px_trend = px.scatter(
+                    final_df,
+                    x='Segment',
+                    y='Expression',
+                    template='simple_white',
+                    trendline=trend_type[:-1],
+                    trendline_color_override='red',
+                    trendline_options=dict(frac=int(trend_type[-1:])/10)
+                )
+            else:
+                fig_px_trend = px.scatter(
+                    final_df,
+                    x='Segment',
+                    y='Expression',
+                    template='simple_white',
+                    trendline=trend_type,
+                    trendline_color_override='red',
+                )
             fig_px_trend.data = fig_px_trend.data[1:]
             fig_px_trend = go.Figure(fig_px_trend)
 
