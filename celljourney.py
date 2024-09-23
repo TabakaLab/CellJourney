@@ -574,6 +574,21 @@ def update_coordinates_selectors(output):
         else:
             return [[{'label': column, 'value': column} for column in df.columns]] * 8
 
+@app.callback(
+    Output('cj_radius', 'value'),
+    Input('submit_generate_grid', 'n_clicks'),
+    State('select_x', 'value'),
+    State('select_y', 'value'),
+    State('select_z', 'value'),
+    prevent_initial_call=True
+)
+def update_tube_radius(upload, x, y, z):
+    global df
+    r_x = df[x].max() - df[x].min()
+    r_y = df[y].max() - df[y].min()
+    r_z = df[z].max() - df[z].min()
+    r = (r_x +r_y + r_z) / 36
+    return r
 
 @app.callback(
     Output('normalization_window', 'style'),
@@ -1878,6 +1893,8 @@ def show_additional_plots(selected_cell, heatmap_colorscale, heatmap_colorscale_
             template='none'
         )
     )
+    if data_type == 'csv':
+        raise PreventUpdate
 
     if not (data_type == 'h5mu' or data_type == 'h5ad'):
         return empty_plot, empty_plot
