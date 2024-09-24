@@ -37,7 +37,7 @@ pd.options.mode.chained_assignment = None
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 warnings.filterwarnings('error',category=ConvergenceWarning, module='sklearn')
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
+np.seterr(divide='ignore', invalid='ignore')
 os.makedirs(f'./{FIGURES_DIRECTORY}', exist_ok=True)
 os.makedirs(f'./{TABLES_DIRECTORY}', exist_ok=True)
 
@@ -574,6 +574,7 @@ def update_coordinates_selectors(output):
         else:
             return [[{'label': column, 'value': column} for column in df.columns]] * 8
 
+
 @app.callback(
     Output('cj_radius', 'value'),
     Input('submit_generate_grid', 'n_clicks'),
@@ -589,6 +590,7 @@ def update_tube_radius(upload, x, y, z):
     r_z = df[z].max() - df[z].min()
     r = (r_x +r_y + r_z) / 36
     return r
+
 
 @app.callback(
     Output('normalization_window', 'style'),
