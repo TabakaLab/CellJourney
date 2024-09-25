@@ -3,7 +3,7 @@
 Cell Journey is an open-source tool for interactive exploration and analysis of single-cell trajectories. It allows operating in three-dimensional space at the level of the entire dataset and individual cells. Each implemented visualization comes with several parameters, allowing versatile and quick customization. The resulting graphs can be saved as raster graphics, vector graphics, or interactive visualization in a standalone html file format.
 Features
 
- - Analyze datasets in csv, h5, h5mu, h5ad formats.
+ - Analyze datasets in csv, h5ad, and h5mu formats.
  - Visualize 3D scatter plots, cone plots, streamlines, and streamlets.
  - Quick and straightforward configuration.
  - Data filtering along with various plot customizations.
