@@ -221,9 +221,8 @@ save_accordion = dmc.Accordion(
                         html.Div(
                             [                
                                 dmc.Text(
-                                    'All figures are saved in saved_figures and tables in saved_tables directory. \
-                                    Please name your file carefully as it will be overwritten if \
-                                    named exactly as already existing one.', 
+                                    "All figures are stored in the 'saved_figures' directory, and tables are stored in the 'saved_tables' directory. \
+                                        Please exercise caution when naming your files, as any file with the same name as an existing one will be overwritten", 
                                     size='xs', 
                                     color=GRAY_NEUTRAL_TEXT
                                 ),
@@ -588,7 +587,7 @@ scatter_plot_accordion = dmc.Accordion(
                                 ),
                                 dmc.Textarea(
                                     id='scatter_custom_colorscale_list',
-                                    label='Space-separated list of hex values (max 20 colors).',
+                                    label='Space-separated list of hex values (max 20 colors)',
                                     placeholder='#FF3855 #FFAA1D #2243B6 #000000',
                                     autosize=True,
                                     minRows=1,
@@ -731,7 +730,7 @@ trajectories_accordion = dmc.Accordion(
                                             step=1,
                                             label='Grid size', 
                                             icon=DashIconify(icon='teenyicons:view-grid-solid'),
-                                            description='Start with a value of less than 20.'
+                                            description='Density of the lines'
                                         ),
                                         dmc.Select(
                                             label='Integration method',
@@ -761,7 +760,7 @@ trajectories_accordion = dmc.Accordion(
                                             step=0.5,
                                             label='Step size',
                                             icon=DashIconify(icon='mingcute:time-line'),
-                                            description='Bigger steps result in a longer, less accurate trajectories.'
+                                            description='The larger step results in longer but less accurate trajectories'
                                         ),
                                         dmc.NumberInput(
                                             id='diff_thr', 
@@ -781,7 +780,8 @@ trajectories_accordion = dmc.Accordion(
                                             step=0.5,
                                             label='Scale grid',
                                             icon=DashIconify(icon='fluent-mdl2:scale-volume'),
-                                            description='Rescale the grid that is used check the presence of cells. Zero cells interrputs trajectory calculation.'
+                                            description='Check for the presence of cells in a grid of a rescaled size. \
+                                                The trajectory calculation is aborted if no cells are found.'
                                         ),
                                         dmc.Space(h=10),
                                         dmc.Button(
@@ -836,7 +836,7 @@ trajectories_accordion = dmc.Accordion(
                                     
                                 ),
                                 dmc.Text(
-                                    'Trajectories length histogram. Fitler out unwanted cases by manipulating the red slider below.', 
+                                    'Histogram of trajectories lengths. Filter out trajectories by their lengths by manipulating the red slider below.', 
                                     size='xs', 
                                     color=GRAY_NEUTRAL_TEXT,
                                     id='histogram_trajectories_description',
@@ -858,7 +858,7 @@ trajectories_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Switch(
                                     id='add_scatterplot',
-                                    label='Combine trajectories with scatter plot',
+                                    label='Combine trajectories with the scatter plot',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     checked=True,
@@ -938,7 +938,7 @@ trajectories_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Switch(
                                     id='trajectories_reversed',
-                                    label='Color scale in reversed direction',
+                                    label='Reverse order of color scale',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     onLabel='ON',
@@ -975,7 +975,7 @@ cell_journey_accordion = dmc.Accordion(
                             [                
                                 html.Div(id='cj_alerts'),
                                 dmc.Select(
-                                    label='Select trajectory',
+                                    label='Select the trajectory',
                                     id='cj_select_trajectory',
                                     placeholder='Generate trajectories first (optional)',
                                     clearable=True,
@@ -1001,7 +1001,7 @@ cell_journey_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Text(
                                     'Please be patient. Generating grid can take up to several minutes. \
-                                    Starting with smaller grid size is recommended.', 
+                                    Starting with the smaller grid size is recommended.', 
                                     size='xs', 
                                     color=GRAY_NEUTRAL_TEXT
                                 ),
@@ -1019,8 +1019,7 @@ cell_journey_accordion = dmc.Accordion(
                                             ],
                                         ),
                                         dmc.Select(
-                                            label='Starting velocity',
-                                            description='Cell velocity is more accurate, but prone to noise.',
+                                            label='Compute trajectory using',
                                             id='cj_starting_velocity',
                                             value='cell',
                                             data=[
@@ -1037,7 +1036,7 @@ cell_journey_accordion = dmc.Accordion(
                                             step=100,
                                             label='Number of steps',
                                             icon=DashIconify(icon='mdi-light:dots-horizontal'),
-                                            description='This parameter should be greater than 100.',
+                                            description='This parameter should be greater than 100',
                                         ),
                                         dmc.NumberInput(
                                             id='cj_time_steps', 
@@ -1047,7 +1046,7 @@ cell_journey_accordion = dmc.Accordion(
                                             step=0.5,
                                             label='Step size',
                                             icon=DashIconify(icon='mingcute:time-line'),
-                                            description='Bigger steps result in a longer, but less accurate trajectories'
+                                            description='The larger step results in longer but less accurate trajectories'
                                         ),
                                         dmc.NumberInput(
                                             id='cj_diff_thr', 
@@ -1067,8 +1066,8 @@ cell_journey_accordion = dmc.Accordion(
                                             step=0.01,
                                             label='Scale grid',
                                             icon=DashIconify(icon='fluent-mdl2:scale-volume'),
-                                            description='Rescale the grid that is used check the presence of cells. \
-                                                Zero cells interrputs trajectory calculation.'
+                                            description='Check for the presence of cells in a grid of a rescaled size. \
+                                                The trajectory calculation is aborted if no cells are found.'
                                         ),
                                     ],
                                     title='Trajectory configuration'
@@ -1086,7 +1085,7 @@ cell_journey_accordion = dmc.Accordion(
                                 ),
                                 dmc.Space(h=10),
                                 dmc.Select(
-                                    label='Heatmap method',
+                                    label='Features activities shown in heatmap',
                                     id='heatmap_method',
                                     value='absolute',
                                     data=[
@@ -1122,7 +1121,7 @@ cell_journey_accordion = dmc.Accordion(
                                     step=1,
                                     label='Tube radius',
                                     icon=DashIconify(icon='iconoir:radius'),
-                                    description='The largest distance from the trajectory to the cells that are averaged'
+                                    description='Select cells that fall within a specified radius from the trajectory'
                                 ),
                                 dmc.NumberInput(
                                     id='cj_n_segments', 
@@ -1136,7 +1135,7 @@ cell_journey_accordion = dmc.Accordion(
                                 ),
                                 dmc.Space(h=5),
                                 dmc.Select(
-                                    label='Highlight tube cells',
+                                    label='Highlight selected cells',
                                     id='highlight_tube_cells',
                                     value='single',
                                     data=[
@@ -1175,7 +1174,7 @@ cell_journey_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Switch(
                                     id='heatmap_colorscale_reversed',
-                                    label='Color scale in reversed direction',
+                                    label='Reverse order of color scale',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     onLabel='ON',
@@ -1189,7 +1188,7 @@ cell_journey_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Switch(
                                     id='heatmap_popover_remove_zeros',
-                                    label='Remove zeros',
+                                    label='Remove zeros from feature activities',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     onLabel='ON',
