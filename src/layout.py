@@ -12,7 +12,7 @@ upload_data_accordion = dmc.Accordion(
             [
                 dmc.AccordionControl(
                     dmc.Text(
-                        'Upload data and select features', 
+                        'Upload data and select coordinates', 
                         size='lg', 
                         color=GRAY_NEUTRAL_TEXT, 
                         weight=WEIGHT_TEXT,
@@ -59,63 +59,69 @@ upload_data_accordion = dmc.Accordion(
                                         dbc.Col(
                                             [
                                                 dmc.Select(
-                                                    placeholder='X', 
+                                                    label="X-coordinate",
+                                                    placeholder='X-coordinate', 
                                                     id='select_x',
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (1)'
+                                                    #value='X_umap (1)'
                                                 ),
                                                 dmc.Select(
-                                                    placeholder='Y', 
+                                                    label="Y-coordinate",
+                                                    placeholder='Y-coordinate', 
                                                     id='select_y',
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (2)'
+                                                    #value='X_umap (2)'
                                                 ),
                                                 dmc.Select(
-                                                    placeholder='Z',
+                                                    label="Z-coordinate",
+                                                    placeholder='Z-coordinate',
                                                     id='select_z',
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'),
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (3)'
+                                                    #value='X_umap (3)'
                                                 ),
                                             ],
                                         ),
                                         dbc.Col(
                                             [
                                                 dmc.Select(
+                                                    label="U-coordinate",
                                                     placeholder='U (velocity for X)',
                                                     id='select_u',
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (1)'
+                                                    #value='velocity_umap (1)'
                                                 ),
                                                 dmc.Select(
+                                                    label="V-coordinate",
                                                     placeholder='V (velocity for Y)',
                                                     id='select_v',
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (2)'
+                                                    #value='velocity_umap (2)'
                                                 ),
                                                 dmc.Select(
+                                                    label="W-coordinate",
                                                     placeholder='W (velocity for W)',
                                                     id='select_w',
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (3)'
+                                                    #value='velocity_umap (3)'
                                                 ),
                                             ]
                                         )
                                     ]
                                 ),
                                 dmc.Button(
-                                    'Submit selected features', 
+                                    'Submit selected coordinates', 
                                     id='submit_selected_columns', 
                                     color='primary', 
                                     style={
@@ -222,7 +228,7 @@ save_accordion = dmc.Accordion(
                             [                
                                 dmc.Text(
                                     "All figures are stored in the 'saved_figures' directory, and tables are stored in the 'saved_tables' directory. \
-                                        Please exercise caution when naming your files, as any file with the same name as an existing one will be overwritten", 
+                                    Please exercise caution when naming your files, as any file with the same name as an existing one will be overwritten", 
                                     size='xs', 
                                     color=GRAY_NEUTRAL_TEXT
                                 ),
@@ -453,7 +459,7 @@ plot_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Switch(
                                     id='general_show_legend_streamlines',
-                                    label='Streamlines/streamlines in legend',
+                                    label='Streamlines/streamlets in legend',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     onLabel='Show',
@@ -561,7 +567,7 @@ scatter_plot_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Switch(
                                     id='scatter_reverse_colorscale',
-                                    label='Continuous color scale in reversed direction',
+                                    label='Reverse order of color scale',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     onLabel='ON',
@@ -578,7 +584,7 @@ scatter_plot_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Switch(
                                     id='scatter_custom_colorscale',
-                                    label='Use my custom color scale',
+                                    label='Use custom color palette',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     onLabel='ON',
@@ -587,7 +593,7 @@ scatter_plot_accordion = dmc.Accordion(
                                 ),
                                 dmc.Textarea(
                                     id='scatter_custom_colorscale_list',
-                                    label='Space-separated list of hex values (max 20 colors)',
+                                    label='Space-separated list of color hex values (max 20 colors)',
                                     placeholder='#FF3855 #FFAA1D #2243B6 #000000',
                                     autosize=True,
                                     minRows=1,
@@ -684,7 +690,7 @@ cone_plot_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Switch(
                                     id='cone_reversed',
-                                    label='Color scale in reversed direction',
+                                    label='Reverse order of color palette',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     onLabel='ON',
@@ -708,7 +714,7 @@ trajectories_accordion = dmc.Accordion(
             [
                 dmc.AccordionControl(
                     dmc.Text(
-                        'Plot trajectories', 
+                        'Streamline plot', 
                         size='lg', 
                         color=GRAY_NEUTRAL_TEXT, 
                         weight=WEIGHT_TEXT,
@@ -836,7 +842,7 @@ trajectories_accordion = dmc.Accordion(
                                     
                                 ),
                                 dmc.Text(
-                                    'Histogram of trajectories lengths. Filter out trajectories by their lengths by manipulating the red slider below.', 
+                                    'Histogram of trajectories lengths. Filter out trajectories by their lengths by manipulating the red slider below', 
                                     size='xs', 
                                     color=GRAY_NEUTRAL_TEXT,
                                     id='histogram_trajectories_description',
@@ -962,7 +968,7 @@ cell_journey_accordion = dmc.Accordion(
             [
                 dmc.AccordionControl(
                     dmc.Text(
-                        'Cell Journey', 
+                        'Cell Journey (trajectory)', 
                         size='lg', 
                         color=GRAY_NEUTRAL_TEXT, 
                         weight=WEIGHT_TEXT,
@@ -1001,7 +1007,7 @@ cell_journey_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dmc.Text(
                                     'Please be patient. Generating grid can take up to several minutes. \
-                                    Starting with the smaller grid size is recommended.', 
+                                    Starting with the smaller grid size is recommended', 
                                     size='xs', 
                                     color=GRAY_NEUTRAL_TEXT
                                 ),
@@ -1067,7 +1073,7 @@ cell_journey_accordion = dmc.Accordion(
                                             label='Scale grid',
                                             icon=DashIconify(icon='fluent-mdl2:scale-volume'),
                                             description='Check for the presence of cells in a grid of a rescaled size. \
-                                                The trajectory calculation is aborted if no cells are found.'
+                                                The trajectory calculation is aborted if no cells are found'
                                         ),
                                     ],
                                     title='Trajectory configuration'
@@ -1447,7 +1453,7 @@ right_column = dbc.Col(
                                 ),
                                 dmc.Tab(
                                     dmc.Text(
-                                        'Plot trajectories',
+                                        'Streamline plot',
                                         size='lg',
                                         color=GRAY_NEUTRAL_TEXT,
                                         weight=WEIGHT_TEXT,
@@ -1461,7 +1467,7 @@ right_column = dbc.Col(
                                 ),
                                 dmc.Tab(
                                     dmc.Text(
-                                        'Cell Journey', 
+                                        'Cell Journey (trajectory)', 
                                         size='lg', 
                                         color=GRAY_NEUTRAL_TEXT, 
                                         weight=WEIGHT_TEXT
