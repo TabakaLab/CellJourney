@@ -111,16 +111,16 @@ QUALITATIVE_COLORS = {
         '#FDDB6D','#95918C','#1CAC78','#F0E891','#5D76CB','#FF7538','#EE204D','#FF5349',
         '#C0448F','#FC2847','#926EAE','#F75394','#FFAE42','#FCE883','#C5E384',
     ],
-    'Tab10': [
+    'Crayola_10': [
         '#1A62A5','#A0BAE2','#FD6910','#FDAC65','#289322','#89DB77','#CB111E','#FC8384',
         '#814EAF','#B99FCB','#79433A','#B68982','#DA5DB6','#F4A4C8','#6C6C6C','#BBBBBB',
         '#AFB31C','#D4D57A','#1EB2C5','#8ED3DE'
     ],
-    'Tab15': [
+    'Crayola_15': [
         '#102A93','#6972AD','#B0B3CA','#CCACB3','#AB6171','#7A002D','#3A55DA','#727FDA',
         '#A7A9DA','#DF9DAC','#D8637E','#C72558','#2ABE2C','#7DCF81','#BBD8BC'
     ],
-    'Tab20': [
+    'Crayola_20': [
         '#1A62A5','#A0BAE2','#FD6910','#FDAC65','#289322','#89DB77','#CB111E','#FC8384',
         '#814EAF','#B99FCB','#79433A','#B68982','#DA5DB6','#F4A4C8','#6C6C6C','#BBBBBB',
         '#AFB31C','#D4D57A','#1EB2C5','#8ED3DE'
