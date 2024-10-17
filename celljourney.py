@@ -37,6 +37,7 @@ pd.options.mode.chained_assignment = None
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 warnings.filterwarnings('error',category=ConvergenceWarning, module='sklearn')
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=UserWarning)
 np.seterr(divide='ignore', invalid='ignore')
 os.makedirs(f'./{FIGURES_DIRECTORY}', exist_ok=True)
 os.makedirs(f'./{TABLES_DIRECTORY}', exist_ok=True)
@@ -71,28 +72,30 @@ def parse_data(decoded, filetype):
     if filetype == 'h5mu':
         h5_file = md.read(decoded)
         modalities = list(h5_file.mod.keys())
-        obsm_keys = list(h5_file.obsm.keys())
         obsm_metadata = pd.DataFrame(index=h5_file.obs_names)
-        for obsm_key in obsm_keys:
-            if not isinstance(h5_file.obsm[obsm_key], pd.DataFrame):
-                key_shape = h5_file.obsm[obsm_key].shape
-                if len(key_shape) == 1:
-                    pandas_df = pd.DataFrame(
-                        data={obsm_key: h5_file.obsm[obsm_key]}, index=h5_file.obs_names)
-                    obsm_metadata = pd.concat([obsm_metadata, pandas_df], axis=1)
+        for modality in modalities:
+            obsm_keys = list(h5_file[modality].obsm.keys())
+            for obsm_key in obsm_keys:
+                if not isinstance(h5_file[modality].obsm[obsm_key], pd.DataFrame):
+                    key_shape = h5_file[modality].obsm[obsm_key].shape
+                    if len(key_shape) == 1:
+                        pandas_df = pd.DataFrame(
+                            data={obsm_key: h5_file[modality].obsm[obsm_key]}, index=h5_file[modality].obs_names)
+                        obsm_metadata = pd.concat([obsm_metadata, pandas_df], axis=1)
+                    else:
+                        obsm_current_metadata = dict()
+                        numerical_suffixes = range(1, key_shape[1] + 1)
+                        for num_suf in numerical_suffixes:
+                            obsm_current_metadata.update(
+                                {f'{modality}: {obsm_key} ({num_suf})': h5_file[modality].obsm[obsm_key][:, num_suf - 1]})
+                        pandas_df = pd.DataFrame(
+                            data=obsm_current_metadata, index=h5_file[modality].obs_names)
+                        obsm_metadata = pd.concat([obsm_metadata, pandas_df], axis=1)
                 else:
-                    obsm_current_metadata = dict()
-                    numerical_suffixes = range(1, key_shape[1] + 1)
-                    for num_suf in numerical_suffixes:
-                        obsm_current_metadata.update(
-                            {f'{obsm_key} ({num_suf})': h5_file.obsm[obsm_key][:, num_suf - 1]})
-                    pandas_df = pd.DataFrame(
-                        data=obsm_current_metadata, index=h5_file.obs_names)
-                    obsm_metadata = pd.concat([obsm_metadata, pandas_df], axis=1)
-            else:
-                obsm_metadata = pd.concat(
-                    [obsm_metadata, h5_file.obsm[obsm_key]], axis=1)
-        df = pd.concat([h5_file.obs, obsm_metadata], axis=1)
+                    obsm_metadata = pd.concat(
+                        [obsm_metadata, h5_file[modality].obsm[obsm_key]], axis=1)
+            df = pd.concat([h5_file[modality].obs, obsm_metadata], axis=1)
+            df = pd.concat([h5_file.obs, df], axis=1)
     elif filetype == 'h5ad':
         h5_file = sc.read_h5ad(decoded)
         obsm_keys = list(h5_file.obsm.keys())
@@ -167,14 +170,14 @@ def scatter_plot_data_generator(
                 z=df[df[scatter_feature] == current_feature][z],
                 mode='markers',
                 name=str(current_feature),
-                text=hover_data_storage['single'] if hover_data != [] else None,
+                text=hover_data_storage['multi'][str(current_feature)] if hover_data != [] else None,
                 hovertemplate='%{text}' if hover_data != [] else None,
                 marker=dict(
                     size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
                     opacity=DEFAULT_OPACITY if opacity is None else opacity,
                     color=colors_dict[str(current_feature)],
                 ),
-            ) for current_feature in df[scatter_feature].unique()
+            ) for current_feature in sorted(df[scatter_feature].unique())
         ]
     elif scatter_select_color_type == 'multi' and scatter_feature is not None and not feature_is_qualitative and \
         custom_colorscale_switch and colorscale_quantiles is not None:
@@ -748,7 +751,7 @@ def update_h5mu_options(search_value, modality):
         raise PreventUpdate
     global h5_file
     options = list(h5_file[modality].var.index)
-    options_final = [o for o in options if search_value in o]
+    options_final = [o for o in options if search_value.lower() in o.lower()]
     return options_final[:MAX_DROPDOWN] if len(options_final) > MAX_DROPDOWN else options_final
 
 
@@ -778,7 +781,7 @@ def update_h5ad_options(search_value):
         raise PreventUpdate
     global h5_file
     options = list(h5_file.var.index)
-    options_final = [o for o in options if search_value in o]
+    options_final = [o for o in options if search_value.lower() in o.lower()]
     return options_final[:MAX_DROPDOWN] if len(options_final) > MAX_DROPDOWN else options_final
 
 
@@ -1005,7 +1008,7 @@ def hover_data_storage(feature, hover_data, _):
     global df
     if df is None:
         raise PreventUpdate
-    hover_data_storage = {'single': [], 'multi': dict()}
+    hover_data_storage = {'single': [], 'multi': {}}
     if len(hover_data) == 0:
         hover_data_storage['single'] = None
         hover_data_storage['multi'] = None
@@ -1016,13 +1019,13 @@ def hover_data_storage(feature, hover_data, _):
                 f'<b>{datum}:</b> {df.iloc[i][datum]}<br>' for datum in df[hover_data]) + '<extra></extra>')
         hover_data_storage['single'] = hover_text
         if feature is not None:
-            for current_feature in df[feature].unique():
+            for current_feature in sorted(df[feature].unique()):
                 sub_df = df[df[feature] == current_feature][hover_data]
                 feature_elements = []
                 for i, row in sub_df.iterrows():
                     feature_elements.append(''.join(
                         f'<b>{datum}:</b> {row[datum]}<br>' for datum in hover_data) + '<extra></extra>')
-                hover_data_storage['multi'][current_feature] = feature_elements
+                hover_data_storage['multi'][str(current_feature)] = feature_elements
     return hover_data_storage
 
 
@@ -1094,7 +1097,9 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
         raise PreventUpdate
     elif something_is_empty_string(point_size, opacity):
         raise PreventUpdate
-
+    # print(f"scatter_feature: {scatter_feature}")
+    # print(f"scatter_modality_var: {scatter_modality_var}")
+    # print(f"scatter_h5ad_var: {scatter_h5ad_var}")
     if general_or_modality == 'single_modality' and scatter_h5ad_var is not None:
         temp_var_name = f'{scatter_h5ad_var}'
         expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
@@ -1141,6 +1146,7 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
     fig.layout.uirevision = True
     fig.update_layout(
         margin=ZERO_MARGIN_PLOT,
+        #title=dict(text="Test title", x = 0.5, y = 0.95),
         hovermode=False if hover_data == [] else 'closest',
         template=DEFAULT_TEMPLATE if theme is None else theme,
         showlegend=True if scatter_select_color_type != 'single' and feature_is_qualitative and show_legend else False,

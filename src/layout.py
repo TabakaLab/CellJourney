@@ -372,18 +372,7 @@ plot_accordion = dmc.Accordion(
                                 dmc.MultiSelect(
                                     id='scatter_hover_features', 
                                     placeholder='Select features',
-                                    label=dmc.Tooltip(
-                                        'Show features on hover',
-                                        label='This is an experimental feature and may not work properly under some conditions. \
-                                            Use it with caution. It is recommended to combine it with a single color plot, \
-                                            in extremis with a continuous palette.',
-                                        color='red',
-                                        width=450,
-                                        openDelay=10,
-                                        closeDelay=500,
-                                        transition='slide-right',
-                                        multiline=True
-                                    ),
+                                    label='Show features on hover',
                                     value=[],
                                     searchable=True
                                 ),
@@ -518,7 +507,7 @@ scatter_plot_accordion = dmc.Accordion(
                                 ),
                                 dmc.Text(
                                     id='scatter_h5ad_text',
-                                    children='Modality feature (case-sensitive search)', 
+                                    children='Modality feature', 
                                     size=14,
                                     color=GRAY_NEUTRAL_TEXT,
                                     style={'display': 'none'}
