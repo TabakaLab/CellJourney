@@ -697,7 +697,7 @@ def normalize_data(_, modality, target_sum):
 def general_or_modality(*args):
     if ctx.triggered_id == 'scatter_feature':
         return 'general'
-    elif ctx.triggered_id == 'scatter_modality' or ctx.triggered_id == 'scatter_modality_var':
+    elif ctx.triggered_id == 'scatter_modality_var':
         return 'modality'
     elif ctx.triggered_id == 'scatter_h5ad_dropdown':
         return 'single_modality'
@@ -745,8 +745,9 @@ def add_h5mu_dropdown(modality):
 
 @callback(
     Output('scatter_modality_var', 'options'),
+    Output('heatmap_custom_features', 'options'),
     Input('scatter_modality_var', 'search_value'),
-    State('scatter_modality', 'value')
+    Input('scatter_modality', 'value')
 )
 def update_h5mu_options(search_value, modality):
     if not search_value:
@@ -754,7 +755,8 @@ def update_h5mu_options(search_value, modality):
     global h5_file
     options = list(h5_file[modality].var.index)
     options_final = [o for o in options if search_value.lower() in o.lower()]
-    return options_final[:MAX_DROPDOWN] if len(options_final) > MAX_DROPDOWN else options_final
+    scatter_modality_var = options_final[:MAX_DROPDOWN] if len(options_final) > MAX_DROPDOWN else options_final
+    return scatter_modality_var, scatter_modality_var
 
 
 @app.callback(
@@ -1078,31 +1080,31 @@ def color_type_is_qualitative(scatter_feature, _):
     Input('scatter_colorscale_quantiles', 'value'),
     Input('scatter_custom_colorscale', 'checked'),
     Input('scatter_reverse_colorscale', 'checked'),
+    Input('general_or_modality_feature', 'data'),
     State('scatter_custom_colorscale_list', 'value'),
     State('scatter_modality', 'value'),
     State('select_x', 'value'),
     State('select_y', 'value'),
     State('select_z', 'value'),
     State('scatter_color_type', 'data'),
-    State('general_or_modality_feature', 'data'),
+    
     prevent_initial_call=True
 )
 def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                  scatter_color, scatter_select_color_type, scatter_feature, scatter_modality_var, 
                  scatter_h5ad_var, theme, show_ticks_scatter, legend_leftright, legend_topbottom, 
                  show_legend, show_colorscale, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles, 
-                 custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, modality, 
-                 x, y, z, feature_is_qualitative, general_or_modality):
+                 custom_colorscale_switch, reverse_colorscale_switch, general_or_modality, custom_colorscale, modality, 
+                 x, y, z, feature_is_qualitative):
     global df
     global h5_file
     global data_type
+    
     if something_is_none(submitted, df, x, y, z):
         raise PreventUpdate
     elif something_is_empty_string(point_size, opacity):
         raise PreventUpdate
-    # print(f"scatter_feature: {scatter_feature}")
-    # print(f"scatter_modality_var: {scatter_modality_var}")
-    # print(f"scatter_h5ad_var: {scatter_h5ad_var}")
+
     if general_or_modality == 'single_modality' and scatter_h5ad_var is not None:
         temp_var_name = f'{scatter_h5ad_var}'
         expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
@@ -1197,7 +1199,6 @@ def plot_cone(submitted, cone_size, opacity, colorscale, theme, show_ticks_cone,
         raise PreventUpdate
     elif any([element == '' for element in [cone_size, opacity]]):
         raise PreventUpdate
-
     else:
         fig_data = go.Cone(
             x=df[x],
@@ -1514,6 +1515,7 @@ def update_trajectories_selector(_):
     Input('scatter_colorscale_quantiles', 'value'),
     Input('scatter_custom_colorscale', 'checked'),
     Input('scatter_reverse_colorscale', 'checked'),
+    Input('general_or_modality_feature', 'data'),
     State('scatter_custom_colorscale_list', 'value'),
     State('chunk_size', 'value'),
     State('scatter_modality', 'value'),
@@ -1521,18 +1523,17 @@ def update_trajectories_selector(_):
     State('select_y', 'value'),
     State('select_z', 'value'),
     State('scatter_color_type', 'data'),
-    State('general_or_modality_feature', 'data'),
     prevent_initial_call=True
 )
 def plot_trajectories(finished_generating_trajectories, width, opacity, colorscale, theme,
                       trajectory_type, add_scatterplot, point_size, scatter_opacity, scatter_colorscale, 
                       scatter_colorscale_quantitative, scatter_color, scatter_select_color_type, 
                       scatter_feature, scatter_modality_var, scatter_h5ad_var, show_ticks_trajectories, 
-                      legend_leftright, legend_topbottom, reversed, length_slider, show_legend_trajectories, show_colorscale,
-                      show_legend_streamlines, legend_orientation, streamlines_indices, streamlets_indices,
-                      hover_data, hover_data_storage, colorscale_quantiles, custom_colorscale_switch, 
-                      reverse_colorscale_switch, custom_colorscale, chunk_size, modality, x, y, z,
-                      feature_is_qualitative, general_or_modality):
+                      legend_leftright, legend_topbottom, reversed, length_slider, show_legend_trajectories, 
+                      show_colorscale, show_legend_streamlines, legend_orientation, streamlines_indices,
+                      streamlets_indices, hover_data, hover_data_storage, colorscale_quantiles, 
+                      custom_colorscale_switch, reverse_colorscale_switch, general_or_modality, 
+                      custom_colorscale, chunk_size, modality, x, y, z, feature_is_qualitative):
     global df
     global trajectories
     global grid_trajectories
@@ -1624,7 +1625,7 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
     fig.layout.uirevision = True
     fig.update_layout(
         margin=ZERO_MARGIN_PLOT,
-        hovermode='closest',#False if hover_data == [] else 'closest',
+        hovermode=False if hover_data == [] else 'closest',
         template=DEFAULT_TEMPLATE if theme is None else theme,
         showlegend=True if scatter_select_color_type != 'single' and show_legend_trajectories else False,
         legend_orientation=legend_orientation,
@@ -1855,10 +1856,9 @@ def generate_single_cell_trajectory(selected_cell, k, n_genes, tube_segments, he
                 lambda x: upper_limit if x > upper_limit else x)
 
         if heatmap_method == 'relative':
-            top_genes_data = top_genes_data.applymap(
-                lambda x: 2 if x > 2 else x).dropna(axis=1)
-            top_genes_data = top_genes_data.applymap(
-                lambda x: -2 if x < -2 else x).dropna(axis=1)
+            min_val = top_genes_data.min().min()
+            max_val = top_genes_data.max().max()
+            top_genes_data = top_genes_data.applymap(lambda x: 4 * (x - min_val) / (max_val - min_val) - 2)
 
         top_genes_data = top_genes_data.dropna(axis=1)
         try:
@@ -1926,6 +1926,7 @@ def show_additional_plots(selected_cell, heatmap_colorscale, heatmap_colorscale_
         if method == 'absolute':
             heatmap_data['max_segment'] = heatmap_data.iloc[:, :-1].idxmax(axis=1).map(int)
             segment_means = heatmap_data.groupby('cluster')['max_segment'].mean()
+            
             heatmap_data['mean_max_segment'] = heatmap_data['cluster'].map(segment_means)
             heatmap_data = heatmap_data.sort_values(by='mean_max_segment', ascending=False)
             heatmap_data = heatmap_data.iloc[:,:-2]
@@ -1937,10 +1938,12 @@ def show_additional_plots(selected_cell, heatmap_colorscale, heatmap_colorscale_
             segment_means = heatmap_data.groupby('cluster')['max_segment'].mean()
             heatmap_data['mean_expression'] = heatmap_data['cluster'].map(cluster_means)
             heatmap_data['mean_max_segment'] = heatmap_data['cluster'].map(segment_means)
+            
             positive_clusters = heatmap_data[heatmap_data['mean_expression'] >= 0]
-            negative_clusters = heatmap_data[heatmap_data['mean_expression'] < 0]
             positive_clusters = positive_clusters.sort_values(by='mean_max_segment', ascending=False)
+            negative_clusters = heatmap_data[heatmap_data['mean_expression'] < 0]
             negative_clusters = negative_clusters.sort_values(by='mean_max_segment', ascending=True)
+            
             heatmap_data = pd.concat([negative_clusters, positive_clusters])
             heatmap_data = heatmap_data.iloc[:,:-4]
 
@@ -2135,7 +2138,6 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
             )
 
         figure = go.Figure(data=fig_px.data + fig_px_trend.data) if trend_type != 'none' else go.Figure(data=fig_px.data)
-
         figure.update_layout(
             template='simple_white',
             xaxis_title='Segment',
@@ -2187,24 +2189,25 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
     Input('tube_cells_size', 'value'),
     Input('scatter_custom_colorscale', 'checked'),
     Input('scatter_reverse_colorscale', 'checked'),
+    Input('general_or_modality_feature', 'data'),
     State('scatter_custom_colorscale_list', 'value'),
     State('scatter_modality', 'value'),
     State('select_x', 'value'),
     State('select_y', 'value'),
     State('select_z', 'value'),
     State('scatter_color_type', 'data'),
-    State('general_or_modality_feature', 'data'),
     State('cells_and_segments', 'data'),
     prevent_initiall_call=True
 )
 def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opacity, scatter_colorscale, 
-                    scatter_colorscale_quantitative, scatter_color, scatter_select_color_type, scatter_feature, 
-                    scatter_modality_var, scatter_h5ad_var, theme, trajectory_width, trajectory_opacity,
-                    trajectory_colorscale, reversed, show_ticks_trajectories, legend_leftright, legend_topbottom,
-                    show_legend, show_colorscale, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles, 
-                    tube_points_indices, highlight_tube_cells, tube_cells_color, tube_cells_size, custom_colorscale_switch,
-                    reverse_colorscale_switch, custom_colorscale, modality, x, y, z, feature_is_qualitative,
-                    general_or_modality, cells_and_segments):
+                    scatter_colorscale_quantitative, scatter_color, scatter_select_color_type, 
+                    scatter_feature, scatter_modality_var, scatter_h5ad_var, theme, trajectory_width, 
+                    trajectory_opacity, trajectory_colorscale, reversed, show_ticks_trajectories,
+                    legend_leftright, legend_topbottom, show_legend, show_colorscale, legend_orientation,
+                    hover_data, hover_data_storage, colorscale_quantiles, tube_points_indices, 
+                    highlight_tube_cells, tube_cells_color, tube_cells_size, custom_colorscale_switch, 
+                    reverse_colorscale_switch, general_or_modality, custom_colorscale, modality, x, y, z, 
+                    feature_is_qualitative, cells_and_segments):
     global single_trajectory
     global grid_cj
     global df
@@ -2248,7 +2251,7 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
             hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
             x, y, z, feature_is_qualitative, colorscale_quantiles
         )
-
+        
     if trajectory_is_generated and tube_points_indices != [] and highlight_tube_cells != 'zero':
         if highlight_tube_cells == 'multi':
             for i in range(np.max(cells_and_segments['segment___']) + 1):

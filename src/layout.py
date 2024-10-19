@@ -500,7 +500,7 @@ scatter_plot_accordion = dmc.Accordion(
                                     id='scatter_feature',
                                     placeholder='Select feature',
                                     label='Select feature',
-                                    clearable=True,
+                                    #clearable=True,
                                 ),
                                 dmc.Select(
                                     id='scatter_modality',
@@ -1089,6 +1089,30 @@ cell_journey_accordion = dmc.Accordion(
                                     
                                 ),
                                 dmc.Space(h=10),
+                                dmc.Divider(
+                                    label='Heatmap configuration',
+                                    labelPosition='center',
+                                ),
+                                dmc.Space(h=5),
+                                dmc.SegmentedControl(
+                                    id='heatmap_select_group',
+                                    fullWidth=True,
+                                    value='automatic',
+                                    data=[
+                                        {'value': 'custom', 'label': 'Custom features'},
+                                        {'value': 'automatic', 'label': 'Automatically selected'},
+                                        {'value': 'both', 'label': 'Show both sets'}
+                                    ],
+                                ),
+                                dmc.Space(h=5),
+                                dmc.MultiSelect(
+                                    id='heatmap_custom_features', 
+                                    placeholder='Select features',
+                                    label='Select custom features',
+                                    value=[],
+                                    searchable=True
+                                ),
+                                dmc.Space(h=5),
                                 dmc.Select(
                                     label='Features activities shown in heatmap',
                                     id='heatmap_method',
