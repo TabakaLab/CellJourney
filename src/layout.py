@@ -447,6 +447,16 @@ plot_accordion = dmc.Accordion(
                                 ),
                                 dmc.Space(h=5),
                                 dmc.Switch(
+                                    id='general_show_colorscale',
+                                    label='Color scale',
+                                    size='sm',
+                                    color=SWITCH_COLOR,
+                                    onLabel='Show',
+                                    offLabel='Hide',
+                                    checked=True
+                                ),
+                                dmc.Space(h=5),
+                                dmc.Switch(
                                     id='general_show_legend_streamlines',
                                     label='Streamlines/streamlets in legend',
                                     size='sm',

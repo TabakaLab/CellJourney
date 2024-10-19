@@ -148,7 +148,7 @@ def something_is_zero(*args):
 
 def scatter_plot_data_generator(
         df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative, scatter_color,
-        scatter_select_color_type, scatter_feature, show_legend, hover_data, hover_data_storage,
+        scatter_select_color_type, scatter_feature, show_colorscale, hover_data, hover_data_storage,
         custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale,  x, y, z, 
         feature_is_qualitative, colorscale_quantiles):
     global feature_distribution
@@ -203,7 +203,7 @@ def scatter_plot_data_generator(
                 marker_colorscale=temp_colorscale,
                 marker=dict(
                     size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
-                    showscale=show_legend,
+                    showscale=show_colorscale,
                     opacity=DEFAULT_OPACITY if opacity is None else opacity,
                 ),
             )
@@ -223,7 +223,7 @@ def scatter_plot_data_generator(
                 marker_colorscale=scatter_colorscale_quantitative,
                 marker=dict(
                     size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
-                    showscale=show_legend,
+                    showscale=show_colorscale,
                     reversescale=reverse_colorscale_switch,
                     opacity=DEFAULT_OPACITY if opacity is None else opacity,
                     color='black'
@@ -249,7 +249,6 @@ def scatter_plot_data_generator(
                 ),
             )
         ]
-
     return fig_data
  
 
@@ -580,19 +579,21 @@ def update_coordinates_selectors(output):
 
 @app.callback(
     Output('cj_radius', 'value'),
+    Output('cj_radius', 'step'),
     Input('submit_generate_grid', 'n_clicks'),
     State('select_x', 'value'),
     State('select_y', 'value'),
     State('select_z', 'value'),
     prevent_initial_call=True
 )
-def update_tube_radius(upload, x, y, z):
+def update_tube_radius_and_step(upload, x, y, z):
     global df
     r_x = df[x].max() - df[x].min()
     r_y = df[y].max() - df[y].min()
     r_z = df[z].max() - df[z].min()
     r = (r_x +r_y + r_z) / 36
-    return r
+    step = r / 4
+    return r, step
 
 
 @app.callback(
@@ -732,13 +733,14 @@ def set_default_modality(modalities):
 @app.callback(
     Output('scatter_modality_var', 'style'),
     Output('scatter_modality_var', 'placeholder'),
+    Output('scatter_modality_var', 'value'),
     Input('scatter_modality', 'value'),
     prevent_initial_call=True
 )
 def add_h5mu_dropdown(modality):
     global h5_file
     features = list(h5_file[modality].var.index)
-    return {'display': 'block'}, features[0]
+    return {'display': 'block'}, features[0], None
 
 
 @callback(
@@ -1069,6 +1071,7 @@ def color_type_is_qualitative(scatter_feature, _):
     Input('general_legend_leftright', 'value'),
     Input('general_legend_topbottom', 'value'),
     Input('general_show_legend', 'checked'),
+    Input('general_show_colorscale', 'checked'),
     Input('general_legend_orientation', 'value'),
     Input('scatter_hover_features', 'value'),
     Input('hover_data_storage', 'data'),
@@ -1087,7 +1090,7 @@ def color_type_is_qualitative(scatter_feature, _):
 def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                  scatter_color, scatter_select_color_type, scatter_feature, scatter_modality_var, 
                  scatter_h5ad_var, theme, show_ticks_scatter, legend_leftright, legend_topbottom, 
-                 show_legend, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles, 
+                 show_legend, show_colorscale, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles, 
                  custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, modality, 
                  x, y, z, feature_is_qualitative, general_or_modality):
     global df
@@ -1109,7 +1112,7 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
         try:
             fig_data = scatter_plot_data_generator(
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, temp_var_name, show_legend, hover_data,
+                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
                 custom_colorscale, x, y, z, False, colorscale_quantiles
             )
@@ -1125,7 +1128,7 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
         try:
             fig_data = scatter_plot_data_generator(
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, temp_var_name, show_legend, hover_data,
+                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
                 custom_colorscale, x, y, z, False, colorscale_quantiles
             )
@@ -1135,7 +1138,7 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
         try:
             fig_data = scatter_plot_data_generator(
                 df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, scatter_feature, show_legend, hover_data,
+                scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
                 custom_colorscale, x, y, z, feature_is_qualitative, colorscale_quantiles
             )
@@ -1146,10 +1149,9 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
     fig.layout.uirevision = True
     fig.update_layout(
         margin=ZERO_MARGIN_PLOT,
-        #title=dict(text="Test title", x = 0.5, y = 0.95),
         hovermode=False if hover_data == [] else 'closest',
         template=DEFAULT_TEMPLATE if theme is None else theme,
-        showlegend=True if scatter_select_color_type != 'single' and feature_is_qualitative and show_legend else False,
+        showlegend=True if scatter_select_color_type != 'single' and show_legend else False,
         legend_orientation=legend_orientation,
         legend=dict(
             font=dict(size=20),
@@ -1180,7 +1182,7 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
     Input('cone_reversed', 'checked'),
     Input('scatter_hover_features', 'value'),
     Input('hover_data_storage', 'data'),
-    Input('general_show_legend', 'checked'),
+    Input('general_show_colorscale', 'checked'),
     State('select_x', 'value'),
     State('select_y', 'value'),
     State('select_z', 'value'),
@@ -1189,7 +1191,7 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
     State('select_w', 'value'),
 )
 def plot_cone(submitted, cone_size, opacity, colorscale, theme, show_ticks_cone, reversed,
-              hover_data, hover_data_storage, show_legend, x, y, z, u, v, w):
+              hover_data, hover_data_storage, show_colorscale, x, y, z, u, v, w):
     global df
     if any([element is None for element in [submitted, df, x, y, z, u, v, w]]):
         raise PreventUpdate
@@ -1207,7 +1209,7 @@ def plot_cone(submitted, cone_size, opacity, colorscale, theme, show_ticks_cone,
             sizemode='scaled',
             sizeref=cone_size,
             colorscale=colorscale,
-            showscale=show_legend,
+            showscale=show_colorscale,
             reversescale=reversed,
             text=hover_data_storage['single'] if hover_data != [] else None,
             hovertemplate='%{text}' if hover_data != [] else None,
@@ -1502,6 +1504,7 @@ def update_trajectories_selector(_):
     Input('trajectories_reversed', 'checked'),
     Input('trajectories_length_slider', 'value'),
     Input('general_show_legend', 'checked'),
+    Input('general_show_colorscale', 'checked'),
     Input('general_show_legend_streamlines', 'checked'),
     Input('general_legend_orientation', 'value'),
     Input('streamlines_indices', 'data'),
@@ -1525,7 +1528,7 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
                       trajectory_type, add_scatterplot, point_size, scatter_opacity, scatter_colorscale, 
                       scatter_colorscale_quantitative, scatter_color, scatter_select_color_type, 
                       scatter_feature, scatter_modality_var, scatter_h5ad_var, show_ticks_trajectories, 
-                      legend_leftright, legend_topbottom, reversed, length_slider, show_legend_trajectories,
+                      legend_leftright, legend_topbottom, reversed, length_slider, show_legend_trajectories, show_colorscale,
                       show_legend_streamlines, legend_orientation, streamlines_indices, streamlets_indices,
                       hover_data, hover_data_storage, colorscale_quantiles, custom_colorscale_switch, 
                       reverse_colorscale_switch, custom_colorscale, chunk_size, modality, x, y, z,
@@ -1552,7 +1555,7 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
             temp_df = pd.concat([df, temp_pd], axis=1)
             fig_data = scatter_plot_data_generator(
                 temp_df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, temp_var_name, show_legend_trajectories, hover_data,
+                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
                 x, y, z, False, colorscale_quantiles
             )
@@ -1565,14 +1568,14 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
             temp_df = pd.concat([df, temp_pd], axis=1)
             fig_data = scatter_plot_data_generator(
                 temp_df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, temp_var_name, show_legend_trajectories, hover_data,
+                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
                 x, y, z, False, colorscale_quantiles
             )
         else:
             fig_data = scatter_plot_data_generator(
                 df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, scatter_feature, show_legend_trajectories, hover_data,
+                scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
                 x, y, z, feature_is_qualitative, colorscale_quantiles
             )
@@ -1621,7 +1624,7 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
     fig.layout.uirevision = True
     fig.update_layout(
         margin=ZERO_MARGIN_PLOT,
-        hovermode=False if hover_data == [] else 'closest',
+        hovermode='closest',#False if hover_data == [] else 'closest',
         template=DEFAULT_TEMPLATE if theme is None else theme,
         showlegend=True if scatter_select_color_type != 'single' and show_legend_trajectories else False,
         legend_orientation=legend_orientation,
@@ -2039,7 +2042,6 @@ def show_additional_plots(selected_cell, heatmap_colorscale, heatmap_colorscale_
     State('heatmap_popover_remove_zeros', 'checked'),
     State('heatmap_trend_method', 'value'),
     State('heatmap_popover_plottype', 'value'),
-    
     prevent_initial_call=True
 )
 def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove_zeros, trend_type, plottype):
@@ -2174,6 +2176,7 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
     Input('general_legend_leftright', 'value'),
     Input('general_legend_topbottom', 'value'),
     Input('general_show_legend', 'checked'),
+    Input('general_show_colorscale', 'checked'),
     Input('general_legend_orientation', 'value'),
     Input('scatter_hover_features', 'value'),
     Input('hover_data_storage', 'data'),
@@ -2198,7 +2201,7 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
                     scatter_colorscale_quantitative, scatter_color, scatter_select_color_type, scatter_feature, 
                     scatter_modality_var, scatter_h5ad_var, theme, trajectory_width, trajectory_opacity,
                     trajectory_colorscale, reversed, show_ticks_trajectories, legend_leftright, legend_topbottom,
-                    show_legend, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles, 
+                    show_legend, show_colorscale, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles, 
                     tube_points_indices, highlight_tube_cells, tube_cells_color, tube_cells_size, custom_colorscale_switch,
                     reverse_colorscale_switch, custom_colorscale, modality, x, y, z, feature_is_qualitative,
                     general_or_modality, cells_and_segments):
@@ -2222,7 +2225,7 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
         temp_df = pd.concat([df, temp_pd], axis=1)
         fig_data = scatter_plot_data_generator(
             temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-            scatter_color, scatter_select_color_type, temp_var_name, show_legend, hover_data,
+            scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
             hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
             x, y, z, False, colorscale_quantiles
         )
@@ -2234,14 +2237,14 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
         temp_df = pd.concat([df, temp_pd], axis=1)
         fig_data = scatter_plot_data_generator(
             temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-            scatter_color, scatter_select_color_type, temp_var_name, show_legend, hover_data,
+            scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
             hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
             x, y, z, False, colorscale_quantiles
         )
     else:
         fig_data = scatter_plot_data_generator(
             df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-            scatter_color, scatter_select_color_type, scatter_feature, show_legend, hover_data,
+            scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, hover_data,
             hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
             x, y, z, feature_is_qualitative, colorscale_quantiles
         )
