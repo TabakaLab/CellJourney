@@ -734,29 +734,34 @@ def set_default_modality(modalities):
     Output('scatter_modality_var', 'style'),
     Output('scatter_modality_var', 'placeholder'),
     Output('scatter_modality_var', 'value'),
+    Output('heatmap_custom_features', 'placeholder'),
+    Output('heatmap_custom_features', 'value'),
     Input('scatter_modality', 'value'),
     prevent_initial_call=True
 )
 def add_h5mu_dropdown(modality):
     global h5_file
     features = list(h5_file[modality].var.index)
-    return {'display': 'block'}, features[0], None
+    return {'display': 'block'}, features[0], None, features[0], None
 
 
 @callback(
     Output('scatter_modality_var', 'options'),
     Output('heatmap_custom_features', 'options'),
     Input('scatter_modality_var', 'search_value'),
+    Input('heatmap_custom_features', 'search_value'),
     Input('scatter_modality', 'value')
 )
-def update_h5mu_options(search_value, modality):
+def update_h5mu_options(search_value, search_custom, modality):
     if not search_value:
         raise PreventUpdate
     global h5_file
     options = list(h5_file[modality].var.index)
     options_final = [o for o in options if search_value.lower() in o.lower()]
     scatter_modality_var = options_final[:MAX_DROPDOWN] if len(options_final) > MAX_DROPDOWN else options_final
-    return scatter_modality_var, scatter_modality_var
+    custom_features_options = [o for o in options if search_custom.lower() in o.lower()]
+    custom_var = custom_features_options[:MAX_DROPDOWN] if len(custom_features_options) > MAX_DROPDOWN else custom_features_options
+    return scatter_modality_var, custom_var
 
 
 @app.callback(

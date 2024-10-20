@@ -984,7 +984,6 @@ cell_journey_accordion = dmc.Accordion(
                                     id='cj_select_trajectory',
                                     placeholder='Generate trajectories first (optional)',
                                     clearable=True,
-                                    #disabled=True,
                                 ),
                                 dmc.NumberInput(
                                     id='cj_n_grid', 
@@ -994,7 +993,6 @@ cell_journey_accordion = dmc.Accordion(
                                     step=1,
                                     label='Grid size', 
                                     icon=DashIconify(icon='teenyicons:view-grid-solid'),
-                                    #description='This grid can be denser'
                                 ),
                                 dmc.Space(h=5),
                                 dmc.Button(
@@ -1105,12 +1103,13 @@ cell_journey_accordion = dmc.Accordion(
                                     ],
                                 ),
                                 dmc.Space(h=5),
-                                dmc.MultiSelect(
-                                    id='heatmap_custom_features', 
+                                dcc.Dropdown(
+                                    id='heatmap_custom_features',
                                     placeholder='Select features',
-                                    label='Select custom features',
-                                    value=[],
-                                    searchable=True
+                                    multi=True,
+                                    searchable=True,
+                                    clearable=True,
+                                    options=[]
                                 ),
                                 dmc.Space(h=5),
                                 dmc.Select(
