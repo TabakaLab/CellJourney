@@ -65,7 +65,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    #value='X_umap (1)'
+                                                    value='X_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     label="Y-coordinate",
@@ -74,7 +74,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    #value='X_umap (2)'
+                                                    value='X_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     label="Z-coordinate",
@@ -83,7 +83,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'),
                                                     style=SELECT_STYLE,
-                                                    #value='X_umap (3)'
+                                                    value='X_umap (3)'
                                                 ),
                                             ],
                                         ),
@@ -96,7 +96,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    #value='velocity_umap (1)'
+                                                    value='velocity_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     label="V-coordinate",
@@ -105,7 +105,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    #value='velocity_umap (2)'
+                                                    value='velocity_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     label="W-coordinate",
@@ -114,7 +114,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    #value='velocity_umap (3)'
+                                                    value='velocity_umap (3)'
                                                 ),
                                             ]
                                         )
@@ -567,6 +567,16 @@ scatter_plot_accordion = dmc.Accordion(
                                 dmc.Switch(
                                     id='scatter_reverse_colorscale',
                                     label='Reverse order of color scale',
+                                    size='sm',
+                                    color=SWITCH_COLOR,
+                                    onLabel='ON',
+                                    offLabel='OFF',
+                                    checked=False
+                                ),
+                                dmc.Space(h=5),
+                                dmc.Switch(
+                                    id='scatter_volume_plot',
+                                    label='Add volume plot to continuous feature',
                                     size='sm',
                                     color=SWITCH_COLOR,
                                     onLabel='ON',
@@ -1137,7 +1147,7 @@ cell_journey_accordion = dmc.Accordion(
                                     value=100,
                                     precision=0,
                                     step=1,
-                                    label='Number of features',
+                                    label='Number of automatically selected features',
                                     icon=DashIconify(icon='icons8:generic-sorting'),
                                     description=''
                                 ),
@@ -1583,11 +1593,12 @@ layout = html.Div(
         html.Div(id='trajectories_placeholder'),
         html.Div(id='cj_placeholder'),
         html.Div(id='cj_placeholder_2'),
-        html.Div(id='placeholder'),
+        html.Div(id='savefigure_placeholder'),
         html.Div(id='subset_placeholder'),
         html.Div(id='save_table_callback'),
         html.Div(id='placeholder_streamlets'),
         html.Div(id='feature_histogram_trigger'),
+        
         dcc.Store(id='streamlines_indices'),
         dcc.Store(id='streamlets_indices'),
         dcc.Store(id='heatmap_data'),
