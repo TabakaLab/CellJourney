@@ -65,7 +65,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (1)'
+                                                    #value='X_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     label="Y-coordinate",
@@ -74,7 +74,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (2)'
+                                                    #value='X_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     label="Z-coordinate",
@@ -83,7 +83,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'),
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (3)'
+                                                    #value='X_umap (3)'
                                                 ),
                                             ],
                                         ),
@@ -96,7 +96,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (1)'
+                                                    #value='velocity_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     label="V-coordinate",
@@ -105,7 +105,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (2)'
+                                                    #value='velocity_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     label="W-coordinate",
@@ -114,7 +114,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (3)'
+                                                    #value='velocity_umap (3)'
                                                 ),
                                             ]
                                         )
@@ -1115,7 +1115,7 @@ cell_journey_accordion = dmc.Accordion(
                                 dmc.Space(h=5),
                                 dcc.Dropdown(
                                     id='heatmap_custom_features',
-                                    placeholder='Select features',
+                                    placeholder='Select custom features',
                                     multi=True,
                                     searchable=True,
                                     clearable=True,
