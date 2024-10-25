@@ -65,7 +65,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    #value='X_umap (1)'
+                                                    value='X_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     label="Y-coordinate",
@@ -74,7 +74,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    #value='X_umap (2)'
+                                                    value='X_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     label="Z-coordinate",
@@ -83,7 +83,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'),
                                                     style=SELECT_STYLE,
-                                                    #value='X_umap (3)'
+                                                    value='X_umap (3)'
                                                 ),
                                             ],
                                         ),
@@ -96,7 +96,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    #value='velocity_umap (1)'
+                                                    value='velocity_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     label="V-coordinate",
@@ -105,7 +105,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    #value='velocity_umap (2)'
+                                                    value='velocity_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     label="W-coordinate",
@@ -114,7 +114,7 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    #value='velocity_umap (3)'
+                                                    value='velocity_umap (3)'
                                                 ),
                                             ]
                                         )
@@ -574,15 +574,6 @@ scatter_plot_accordion = dmc.Accordion(
                                     checked=False
                                 ),
                                 dmc.Space(h=5),
-                                dmc.Switch(
-                                    id='scatter_volume_plot',
-                                    label='Add volume plot to continuous feature',
-                                    size='sm',
-                                    color=SWITCH_COLOR,
-                                    onLabel='ON',
-                                    offLabel='OFF',
-                                    checked=False
-                                ),
                                 dmc.Select(
                                     id='scatter_colorscale',
                                     label='Built-in discrete color scale',
@@ -614,7 +605,7 @@ scatter_plot_accordion = dmc.Accordion(
                                     min=0, 
                                     max=1,
                                     marks={0: '0', 0.25: '¼', 0.5: 'Mid-range', 0.75: '¾', 1: '1'},
-                                    allowCross=False
+                                    allowCross=False,
                                 ),
                                 dcc.Graph(
                                     id='feature_distribution_histogram', 
@@ -639,6 +630,93 @@ scatter_plot_accordion = dmc.Accordion(
                                     fullWidth=True,
                                     size='xs',
                                     swatchesPerRow=20,
+                                ),
+                                dmc.Space(h=10),
+                                dmc.Alert(
+                                    [
+                                        dmc.Switch(
+                                            id='scatter_volume_plot',
+                                            label='Add volume plot to continuous feature',
+                                            size='sm',
+                                            color=SWITCH_COLOR,
+                                            onLabel='ON',
+                                            offLabel='OFF',
+                                            checked=False
+                                        ),
+                                        dmc.Space(h=5),
+                                        dmc.Switch(
+                                            id='scatter_volume_single_color',
+                                            label='Single color scatter when volume is plotted',
+                                            size='sm',
+                                            color=SWITCH_COLOR,
+                                            onLabel='ON',
+                                            offLabel='OFF',
+                                            checked=False
+                                        ),
+                                        dmc.NumberInput(
+                                            id='scatter_volume_cutoff',
+                                            min=5,
+                                            max=95,
+                                            value=60,
+                                            precision=0,
+                                            step=10,
+                                            label='Volume plot transparency cut-off quantile',
+                                            icon=DashIconify(icon='bi:file-break')
+                                        ),
+                                        dmc.NumberInput(
+                                            id='scatter_volume_opacity',
+                                            min=0,
+                                            max=1,
+                                            value=0.1,
+                                            precision=2,
+                                            step=0.02,
+                                            label='Volume plot opacity',
+                                            icon=DashIconify(icon='cil:opacity')
+                                        ),
+                                        dmc.Select(
+                                            id='scatter_volume_kernel',
+                                            label='Radial basis function',
+                                            data=['gaussian', 'inverse', 'linear', 'cubic', 'multiquadratic', 'thin_plate'],
+                                            value='inverse',
+                                            icon=DashIconify(icon='fluent:bezier-curve-square-20-regular')
+                                        ),
+                                        dmc.NumberInput(
+                                            id='scatter_volume_kernel_smooth',
+                                            value=20,
+                                            precision=0,
+                                            step=1,
+                                            label='Smoothing level',
+                                            icon=DashIconify(icon='material-symbols:line-curve')
+                                        ),
+                                        dmc.NumberInput(
+                                            id='scatter_volume_gaussian_sd_scaler',
+                                            min=0,
+                                            value=5,
+                                            precision=2,
+                                            step=1,
+                                            label='Gaussian filter standard deviation multipler',
+                                            icon=DashIconify(icon='fluent-mdl2:scale-volume')
+                                        ),
+                                        dmc.NumberInput(
+                                            id='scatter_volume_grid_size',
+                                            min=2,
+                                            value=25,
+                                            precision=0,
+                                            step=5,
+                                            label='Grid size',
+                                            icon=DashIconify(icon='et:grid')
+                                        ),
+                                        dmc.NumberInput(
+                                            id='scatter_volume_radius_scaler',
+                                            min=0.001,
+                                            value=1,
+                                            precision=3,
+                                            step=1,
+                                            label='Radius scaler',
+                                            icon=DashIconify(icon='game-icons:radial-balance')
+                                        ),
+                                    ],
+                                    title='Volume plot',
                                 ),
                             ]
                         ),
@@ -978,7 +1056,7 @@ cell_journey_accordion = dmc.Accordion(
                 dmc.AccordionControl(
                     dmc.Text(
                         'Cell Journey (trajectory)', 
-                        size='lg', 
+                        size='lg',
                         color=GRAY_NEUTRAL_TEXT, 
                         weight=WEIGHT_TEXT,
                     ), 

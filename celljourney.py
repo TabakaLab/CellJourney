@@ -19,7 +19,8 @@ from dash import html, dcc, callback, Input, Output, State, ctx
 from coloraide import Color
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
-from scipy.interpolate import interpn, interp1d, griddata
+from scipy.interpolate import interpn, interp1d, griddata, Rbf
+from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree, cKDTree
 from sklearn.cluster import KMeans
 from sklearn.exceptions import ConvergenceWarning
@@ -147,34 +148,43 @@ def something_is_zero(*args):
     else:
         return False
     
-def generate_volume_plot(df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch, grid_size=35):
-    xi = np.linspace(df[x].min(), df[x].max(), grid_size)
-    yi = np.linspace(df[y].min(), df[y].max(), grid_size)
-    zi = np.linspace(df[z].min(), df[z].max(), grid_size)
+def generate_volume_plot(df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch, 
+                         cutoff, volume_opacity, kernel, kernel_smooth, sd_scaler, grid_size, radius):
+    dx = (df[x].max() - df[x].min()) / grid_size
+    dy = (df[y].max() - df[y].min()) / grid_size
+    dz = (df[z].max() - df[z].min()) / grid_size
+    shift = 3
+    xi = np.linspace(df[x].min() - shift * dx, df[x].max() + shift * dx, grid_size)
+    yi = np.linspace(df[y].min() - shift * dy, df[y].max() + shift * dy, grid_size)
+    zi = np.linspace(df[z].min() - shift * dz, df[z].max() + shift * dz, grid_size)
+
     vol_X, vol_Y, vol_Z = np.meshgrid(xi, yi, zi, indexing='ij')
-    grid_values = griddata((df[x], df[y], df[z]), df[scatter_feature], (vol_X, vol_Y, vol_Z), method='linear')
-    r_x = (df[x].max() - df[x].min()) 
+    rbf = Rbf(df[x], df[y], df[z], df[scatter_feature], function=kernel, smooth=kernel_smooth)
+    grid_values = rbf(vol_X, vol_Y, vol_Z)
+
+    r_x = (df[x].max() - df[x].min())
     r_y = (df[y].max() - df[y].min())
     r_z = (df[z].max() - df[z].min())
+    r_max = (r_x + r_y + r_z) / (3 * grid_size)
+
     grid_points = np.column_stack((vol_X.ravel(), vol_Y.ravel(), vol_Z.ravel()))
     tree = cKDTree(df[[x, y, z]].values)
-    #r_max = np.sqrt(r_x**2 + r_y**2 + r_z**2)    
-    r_max = (r_x + r_y + r_z) / (3 * grid_size)
-    indices = tree.query_ball_point(grid_points, r=r_max) 
+    indices = tree.query_ball_point(grid_points, r=r_max * radius)    
     mask = np.zeros(len(grid_points), dtype=bool)
-    r = np.array([r_x, r_y, r_z])
-    data_points = df[[x, y, z]].values
     for i, near_inds in enumerate(indices):
         if near_inds:
-            pts = data_points[near_inds]
-            diff = np.abs(pts - grid_points[i])
-            within_range = np.all(diff <= r, axis=1)
-            if np.any(within_range):
-                mask[i] = True
-    
+            mask[i] = True
+
     mask = mask.reshape(vol_X.shape)
     grid_values[~mask] = np.nan
+
+    grid_values_filled = np.copy(grid_values)
+    nan_mask = np.isnan(grid_values)
+    grid_values_filled[nan_mask] = 0
+    grid_values = gaussian_filter(grid_values_filled, sigma=(sd_scaler * dx, sd_scaler * dy, sd_scaler * dz))
+    grid_values[nan_mask] = np.nan
     grid_values = grid_values.flatten()
+
     volume_plot_data = go.Volume(
         x=vol_X.flatten(),
         y=vol_Y.flatten(),
@@ -182,8 +192,8 @@ def generate_volume_plot(df, x, y, z, scatter_feature, scatter_colorscale_quanti
         value=grid_values,
         isomin=grid_values.min(),
         isomax=grid_values.max(),
-        opacity=0.1,
-        opacityscale=[[0, 0], [0.25, 0], [0.75, 1], [1, 1]],
+        opacity=volume_opacity,
+        opacityscale=[[0, 0], [(cutoff - 5) / 100, 0], [(cutoff + 5) / 100, 0.8], [1, 1]],
         surface_count=50,
         colorscale=scatter_colorscale_quantitative,
         reversescale=reverse_colorscale_switch,
@@ -196,9 +206,29 @@ def scatter_plot_data_generator(
         df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative, scatter_color,
         scatter_select_color_type, scatter_feature, show_colorscale, hover_data, hover_data_storage,
         custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale,  x, y, z, 
-        feature_is_qualitative, colorscale_quantiles, add_volume):
+        feature_is_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+        kernel, kernel_smooth, sd_scaler, grid_size, radius):
     global feature_distribution
     volume_plot_data = None
+    
+    def single_color_scatter():
+        single_color_data =  go.Scatter3d(
+            x=df[x],
+            y=df[y],
+            z=df[z],
+            name='Cells',
+            mode='markers',
+            text=hover_data_storage['single'] if hover_data != [] else None,
+            hovertemplate='%{text}' if hover_data != [] else None,
+            marker=dict(
+                size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
+                opacity=DEFAULT_OPACITY if opacity is None else opacity,
+                reversescale=reverse_colorscale_switch,
+                color=scatter_color,
+            ),
+        )
+        return single_color_data
+
     if scatter_select_color_type == 'multi' and scatter_feature is not None and feature_is_qualitative:
         colors_dict = color_selector(
             df=df,
@@ -237,71 +267,63 @@ def scatter_plot_data_generator(
         for i, temp_color in enumerate(temp_colors):
             temp_colorscale.append([quants[i], temp_color])
         feature_distribution = df[scatter_feature]
-        fig_data = [
-            go.Scatter3d(
-                x=df[x],
-                y=df[y],
-                z=df[z],
-                name=scatter_feature,
-                mode='markers',
-                text=hover_data_storage['single'] if hover_data != [] else None,
-                hovertemplate='%{text}' if hover_data != [] else None,
-                marker_color=df[scatter_feature],
-                marker_colorscale=temp_colorscale,
-                marker=dict(
-                    size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
-                    showscale=show_colorscale,
-                    opacity=DEFAULT_OPACITY if opacity is None else opacity,
-                ),
-            )
-        ]
+        if add_volume and volume_single_color:
+            fig_data = [single_color_scatter()]
+        else:
+            fig_data = [
+                go.Scatter3d(
+                    x=df[x],
+                    y=df[y],
+                    z=df[z],
+                    name=scatter_feature,
+                    mode='markers',
+                    text=hover_data_storage['single'] if hover_data != [] else None,
+                    hovertemplate='%{text}' if hover_data != [] else None,
+                    marker_color=df[scatter_feature],
+                    marker_colorscale=temp_colorscale,
+                    marker=dict(
+                        size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
+                        showscale=show_colorscale,
+                        opacity=DEFAULT_OPACITY if opacity is None else opacity,
+                    ),
+                )
+            ]
         if add_volume:
             volume_plot_data = generate_volume_plot(
-                df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch)
+                df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch, cutoff, volume_opacity,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius)
     elif scatter_select_color_type == 'multi' and scatter_feature is not None and not feature_is_qualitative:
         feature_distribution = df[scatter_feature]
-        fig_data = [
-            go.Scatter3d(
-                x=df[x],
-                y=df[y],
-                z=df[z],
-                name=scatter_feature,
-                mode='markers',
-                text=hover_data_storage['single'] if hover_data != [] else None,
-                hovertemplate='%{text}' if hover_data != [] else None,
-                marker_color=df[scatter_feature],
-                marker_colorscale=scatter_colorscale_quantitative,
-                marker=dict(
-                    size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
-                    showscale=show_colorscale,
-                    reversescale=reverse_colorscale_switch,
-                    opacity=DEFAULT_OPACITY if opacity is None else opacity,
-                    color='black'
-                ),
-            )
-        ]
+        if add_volume and volume_single_color:
+            fig_data = [single_color_scatter()]
+        else:
+            fig_data = [
+                go.Scatter3d(
+                    x=df[x],
+                    y=df[y],
+                    z=df[z],
+                    name=scatter_feature,
+                    mode='markers',
+                    text=hover_data_storage['single'] if hover_data != [] else None,
+                    hovertemplate='%{text}' if hover_data != [] else None,
+                    marker_color=df[scatter_feature],
+                    marker_colorscale=scatter_colorscale_quantitative,
+                    marker=dict(
+                        size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
+                        showscale=show_colorscale,
+                        reversescale=reverse_colorscale_switch,
+                        opacity=DEFAULT_OPACITY if opacity is None else opacity,
+                        color='black'
+                    ),
+                )
+            ]
         if add_volume:
             volume_plot_data = generate_volume_plot(
-                df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch)
+                df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch, cutoff, volume_opacity,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius)
     else:
         feature_distribution = None
-        fig_data = [
-            go.Scatter3d(
-                x=df[x],
-                y=df[y],
-                z=df[z],
-                name='Cells',
-                mode='markers',
-                text=hover_data_storage['single'] if hover_data != [] else None,
-                hovertemplate='%{text}' if hover_data != [] else None,
-                marker=dict(
-                    size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
-                    opacity=DEFAULT_OPACITY if opacity is None else opacity,
-                    reversescale=reverse_colorscale_switch,
-                    color=scatter_color,
-                ),
-            )
-        ]
+        fig_data = [single_color_scatter()]
     return fig_data, volume_plot_data
  
 
@@ -1159,6 +1181,14 @@ def color_type_is_qualitative(scatter_feature, _):
     Input('scatter_reverse_colorscale', 'checked'),
     Input('general_or_modality_feature', 'data'),
     Input('scatter_volume_plot', 'checked'),
+    Input('scatter_volume_cutoff', 'value'),
+    Input('scatter_volume_opacity', 'value'),
+    Input('scatter_volume_single_color', 'checked'),
+    Input('scatter_volume_kernel', 'value'),
+    Input('scatter_volume_kernel_smooth', 'value'),
+    Input('scatter_volume_gaussian_sd_scaler', 'value'),
+    Input('scatter_volume_grid_size', 'value'),
+    Input('scatter_volume_radius_scaler', 'value'),
     State('scatter_custom_colorscale_list', 'value'),
     State('scatter_modality', 'value'),
     State('select_x', 'value'),
@@ -1172,7 +1202,8 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
                  scatter_color, scatter_select_color_type, scatter_feature, scatter_modality_var, 
                  scatter_h5ad_var, theme, show_ticks_scatter, legend_leftright, legend_topbottom, 
                  show_legend, show_colorscale, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles, 
-                 custom_colorscale_switch, reverse_colorscale_switch, general_or_modality, add_volume, 
+                 custom_colorscale_switch, reverse_colorscale_switch, general_or_modality, add_volume, cutoff, volume_opacity, volume_single_color,
+                 kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler,
                  custom_colorscale, modality, x, y, z, feature_is_qualitative):
     global df
     global h5_file
@@ -1194,7 +1225,8 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
-                custom_colorscale, x, y, z, False, colorscale_quantiles, add_volume)
+                custom_colorscale, x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
         except:
             raise PreventUpdate
     elif general_or_modality == 'modality' and scatter_modality_var is not None:
@@ -1209,7 +1241,8 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
-                custom_colorscale, x, y, z, False, colorscale_quantiles, add_volume)
+                custom_colorscale, x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
         except:
             raise PreventUpdate
     else:
@@ -1218,7 +1251,8 @@ def plot_scatter(submitted, point_size, opacity, scatter_colorscale, scatter_col
                 df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
-                custom_colorscale, x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume)
+                custom_colorscale, x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
         except:
             raise PreventUpdate
 
@@ -1597,6 +1631,14 @@ def update_trajectories_selector(_):
     Input('scatter_custom_colorscale', 'checked'),
     Input('scatter_reverse_colorscale', 'checked'),
     Input('scatter_volume_plot', 'checked'),
+    Input('scatter_volume_cutoff', 'value'),
+    Input('scatter_volume_opacity', 'value'),
+    Input('scatter_volume_single_color', 'checked'),
+    Input('scatter_volume_kernel', 'value'),
+    Input('scatter_volume_kernel_smooth', 'value'),
+    Input('scatter_volume_gaussian_sd_scaler', 'value'),
+    Input('scatter_volume_grid_size', 'value'),
+    Input('scatter_volume_radius_scaler', 'value'),
     Input('general_or_modality_feature', 'data'),
     State('scatter_custom_colorscale_list', 'value'),
     State('chunk_size', 'value'),
@@ -1614,7 +1656,8 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
                       legend_leftright, legend_topbottom, reversed, length_slider, show_legend_trajectories, 
                       show_colorscale, show_legend_streamlines, legend_orientation, streamlines_indices,
                       streamlets_indices, hover_data, hover_data_storage, colorscale_quantiles, 
-                      custom_colorscale_switch, reverse_colorscale_switch, add_volume, general_or_modality, 
+                      custom_colorscale_switch, reverse_colorscale_switch, add_volume, cutoff, volume_opacity, volume_single_color,
+                      kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler, general_or_modality, 
                       custom_colorscale, chunk_size, modality, x, y, z, feature_is_qualitative):
     global df
     global trajectories
@@ -1640,7 +1683,8 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
                 temp_df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-                x, y, z, False, colorscale_quantiles, add_volume)
+                x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
         elif general_or_modality == 'modality' and scatter_modality_var is not None:
             temp_var_name = f'{modality}: {scatter_modality_var}'
             expression_array = h5_file[modality][:,
@@ -1652,13 +1696,15 @@ def plot_trajectories(finished_generating_trajectories, width, opacity, colorsca
                 temp_df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-                x, y, z, False, colorscale_quantiles, add_volume)
+                x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
         else:
             fig_data, volume_data = scatter_plot_data_generator(
                 df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-                x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume)
+                x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
     if trajectory_type == 'streamlines' and finished_generating_trajectories:
         fig_data += [
             go.Scatter3d(
@@ -2279,6 +2325,14 @@ def show_heatmap_popover(selected_cell, open_state, tube_cells, modality, remove
     Input('scatter_reverse_colorscale', 'checked'),
     Input('general_or_modality_feature', 'data'),
     Input('scatter_volume_plot', 'checked'),
+    Input('scatter_volume_cutoff', 'value'),
+    Input('scatter_volume_opacity', 'value'),
+    Input('scatter_volume_single_color', 'checked'),
+    Input('scatter_volume_kernel', 'value'),
+    Input('scatter_volume_kernel_smooth', 'value'),
+    Input('scatter_volume_gaussian_sd_scaler', 'value'),
+    Input('scatter_volume_grid_size', 'value'),
+    Input('scatter_volume_radius_scaler', 'value'),
     State('scatter_custom_colorscale_list', 'value'),
     State('scatter_modality', 'value'),
     State('select_x', 'value'),
@@ -2295,8 +2349,9 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
                     legend_leftright, legend_topbottom, show_legend, show_colorscale, legend_orientation,
                     hover_data, hover_data_storage, colorscale_quantiles, tube_points_indices, 
                     highlight_tube_cells, tube_cells_color, tube_cells_size, custom_colorscale_switch, 
-                    reverse_colorscale_switch, general_or_modality, add_volume, custom_colorscale, modality, x, y, z, 
-                    feature_is_qualitative, cells_and_segments):
+                    reverse_colorscale_switch, general_or_modality, add_volume, cutoff, volume_opacity, volume_single_color, 
+                    kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler,
+                    custom_colorscale, modality, x, y, z, feature_is_qualitative, cells_and_segments):
     global single_trajectory
     global grid_cj
     global df
@@ -2319,7 +2374,8 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
             temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
             scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
             hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-            x, y, z, False, colorscale_quantiles, add_volume)
+            x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+            kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
     elif general_or_modality == 'modality' and scatter_modality_var is not None:
         temp_var_name = f'{modality}: {scatter_modality_var}'
         expression_array = h5_file[modality][:, scatter_modality_var].X.toarray().tolist()
@@ -2330,13 +2386,15 @@ def cj_plot_scatter(grid_is_generated, trajectory_is_generated, point_size, opac
             temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
             scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
             hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-            x, y, z, False, colorscale_quantiles, add_volume)
+            x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+            kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
     else:
         fig_data, volume_data = scatter_plot_data_generator(
             df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
             scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, hover_data,
             hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-            x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume)
+            x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+            kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
         
     if trajectory_is_generated and tube_points_indices != [] and highlight_tube_cells != 'zero':
         if highlight_tube_cells == 'multi':
