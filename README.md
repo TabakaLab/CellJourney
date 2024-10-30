@@ -11,6 +11,9 @@ Features
  - Automated differential gene expression analysis for calculated trajectories.
  - Save publication-ready figures as well as interactive visualizations.
 
+<p align="center"><img src="https://raw.githubusercontent.com/TabakaLab/CellJourney/refs/heads/main/assets/demo.png" width="700px"/></p>
+<p align="center">Go to the <a href="https://tabakalab.github.io/CellJourney">documentation page</a> and watch the <a href="https://tabakalab.github.io/CellJourney/assets/demo.webm">demo video</a>.</p>
+
 ## Installation
 
 In order to install Cell Journey, it is recommended to create a virtual environment in which all the required dependencies can be installed. The installation process consists of the following steps:
