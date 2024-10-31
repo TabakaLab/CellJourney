@@ -34,7 +34,7 @@ from src.parameters import *
 parser = argparse.ArgumentParser(description='Cell Journey')
 parser.add_argument('--port', type=int, default=8080)
 parser.add_argument('--debug', type=bool, default=False)
-parser.add_argument('--file', type=str, default=IMPOSSIBLE_NAME)
+parser.add_argument('--file', type=str, default=None)
 args = parser.parse_args()
 
 pd.options.mode.chained_assignment = None
@@ -58,6 +58,7 @@ h5_file = None
 grid_trajectories = None
 single_trajectory = None
 feature_distribution = None
+custom_path = args.file
 
 app = dash.Dash(
     __name__,
@@ -74,11 +75,12 @@ app.layout = layout
 def parse_data(filename, filetype, content_data):
     global modalities
     global h5_file
-    if args.file == IMPOSSIBLE_NAME:
+    global custom_path
+    if custom_path is None:
         decoded = base64.b64decode(content_data)
 
     if filetype == 'h5mu':
-        if args.file == IMPOSSIBLE_NAME:
+        if custom_path is None:
             temp_dir = tempfile.mkdtemp()
             temp_path = os.path.join(temp_dir, filename)
             with open(temp_path, 'wb') as f:
@@ -113,7 +115,7 @@ def parse_data(filename, filetype, content_data):
             df = pd.concat([h5_file[modality].obs, obsm_metadata], axis=1)
             df = pd.concat([h5_file.obs, df], axis=1)
     elif filetype == 'h5ad':
-        if args.file == IMPOSSIBLE_NAME:
+        if custom_path is None:
             buffer = io.BytesIO(decoded)
             h5_file = sc.read_h5ad(buffer)
         else:
@@ -140,7 +142,7 @@ def parse_data(filename, filetype, content_data):
                 obsm_metadata = pd.concat([obsm_metadata, h5_file.obsm[obsm_key]], axis=1)
         df = pd.concat([h5_file.obs, obsm_metadata], axis=1)
     elif filetype == 'csv':
-        if args.file == IMPOSSIBLE_NAME:
+        if custom_path is None:
             buffer = io.StringIO(decoded.decode('utf-8'))
         else:
             df = pd.read_csv(filename)
@@ -168,6 +170,29 @@ def something_is_zero(*args):
         return True
     else:
         return False
+    
+
+def clear_memory():
+    global chunks
+    global grid_cj
+    global trajectories
+    global modalities
+    global var_dict
+    global h5_file
+    global grid_trajectories
+    global single_trajectory
+    global df
+    global data_type
+    chunks = None
+    grid_cj = None
+    trajectories = None
+    modalities = None
+    var_dict = None
+    h5_file = None
+    grid_trajectories = None
+    single_trajectory = None
+    data_type = None
+    df = None
     
 def generate_volume_plot(df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch, 
                          cutoff, volume_opacity, kernel, kernel_smooth, sd_scaler, grid_size, radius):
@@ -600,14 +625,15 @@ def save_csv_table(_, tube_cells, heatmap, selected_table, filename, modality):
 @app.callback(
     Output('output_data_upload', 'children'),
     Input('submit_upload', 'n_clicks'),
-    Input('upload_data', 'contents'),
+    State('upload_data', 'contents'),
     State('upload_data', 'filename'),
 )
 def upload_data_update_output(submitted, contents, upload_filename):
-    if not (submitted is not None or args.file != IMPOSSIBLE_NAME):
+    global custom_path
+    if not (submitted is not None or custom_path is not None):
         raise PreventUpdate
 
-    if args.file != IMPOSSIBLE_NAME:
+    if custom_path is not None and ctx.triggered_id != 'submit_upload':
         content_data = False
         filename = args.file
         if not os.path.exists(filename):
@@ -623,24 +649,9 @@ def upload_data_update_output(submitted, contents, upload_filename):
         filename = upload_filename
 
     if filetype in ['csv', 'h5mu', 'h5ad']:
-        global chunks
-        global grid_cj
-        global trajectories
-        global modalities
-        global var_dict
-        global h5_file
-        global grid_trajectories
-        global single_trajectory
-        global chunks
+        clear_memory()
         global df
         global data_type
-        grid_cj = None
-        trajectories = None
-        modalities = None
-        var_dict = None
-        h5_file = None
-        grid_trajectories = None
-        single_trajectory = None
         data_type = filetype
         df = parse_data(filename, filetype, content_data)
         return dmc.Text(
@@ -665,6 +676,7 @@ def update_upload_button_name(filename):
     if filename is None:
         return 'Upload data'
     else:
+        clear_memory()
         return f'Upload {filename}'
     
 

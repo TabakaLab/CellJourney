@@ -8,7 +8,6 @@ GRAY_NEUTRAL_TEXT = '#444444'
 WEIGHT_TEXT = 700
 ICON_WIDTH = 20
 ZERO_MARGIN_PLOT = {'l': 0, 'r': 0, 'b': 0, 't': 0}
-IMPOSSIBLE_NAME = '>:<$:!#!<>%#<@%!@#@<:$!<$L(*#$)'
 FIGURES_DIRECTORY = 'saved_figures'
 TABLES_DIRECTORY = 'saved_tables'
 MAX_NUNIQUE = 20 #custom palette
