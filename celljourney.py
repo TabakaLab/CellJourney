@@ -1,8 +1,11 @@
 import warnings
 import re
 import os
+import io
+import base64
 import logging
 import argparse
+import tempfile
 import progressbar
 import numpy as np
 # https://github.com/pandas-dev/pandas/issues/54466
@@ -68,11 +71,22 @@ app.title = 'Cell Journey'
 app.layout = layout
 
 
-def parse_data(decoded, filetype):
+def parse_data(filename, filetype, content_data):
     global modalities
     global h5_file
+    if args.file == IMPOSSIBLE_NAME:
+        decoded = base64.b64decode(content_data)
+
     if filetype == 'h5mu':
-        h5_file = md.read(decoded)
+        if args.file == IMPOSSIBLE_NAME:
+            temp_dir = tempfile.mkdtemp()
+            temp_path = os.path.join(temp_dir, filename)
+            with open(temp_path, 'wb') as f:
+                f.write(decoded)
+            h5_file = md.read_h5mu(temp_path)
+            os.remove(temp_path)
+        else:
+            h5_file = md.read_h5mu(filename)
         modalities = list(h5_file.mod.keys())
         obsm_metadata = pd.DataFrame(index=h5_file.obs_names)
         for modality in modalities:
@@ -99,7 +113,11 @@ def parse_data(decoded, filetype):
             df = pd.concat([h5_file[modality].obs, obsm_metadata], axis=1)
             df = pd.concat([h5_file.obs, df], axis=1)
     elif filetype == 'h5ad':
-        h5_file = sc.read_h5ad(decoded)
+        if args.file == IMPOSSIBLE_NAME:
+            buffer = io.BytesIO(decoded)
+            h5_file = sc.read_h5ad(buffer)
+        else:
+            h5_file = sc.read_h5ad(filename)
         obsm_keys = list(h5_file.obsm.keys())
         obsm_metadata = pd.DataFrame(index=h5_file.obs_names)
         for obsm_key in obsm_keys:
@@ -122,7 +140,10 @@ def parse_data(decoded, filetype):
                 obsm_metadata = pd.concat([obsm_metadata, h5_file.obsm[obsm_key]], axis=1)
         df = pd.concat([h5_file.obs, obsm_metadata], axis=1)
     elif filetype == 'csv':
-        df = pd.read_csv(decoded)
+        if args.file == IMPOSSIBLE_NAME:
+            buffer = io.StringIO(decoded.decode('utf-8'))
+        else:
+            df = pd.read_csv(filename)
     else:
         df = None
     return df.reset_index(drop=True)
@@ -579,56 +600,73 @@ def save_csv_table(_, tube_cells, heatmap, selected_table, filename, modality):
 @app.callback(
     Output('output_data_upload', 'children'),
     Input('submit_upload', 'n_clicks'),
-    State('upload_data', 'contents'),
+    Input('upload_data', 'contents'),
     State('upload_data', 'filename'),
 )
-def upload_data_update_output(submitted, contents, filename):
-    if args.file != IMPOSSIBLE_NAME:
-        submitted = True
-        contents = True
-        filename = args.file
-
-    if submitted is None:
+def upload_data_update_output(submitted, contents, upload_filename):
+    if not (submitted is not None or args.file != IMPOSSIBLE_NAME):
         raise PreventUpdate
-    else:
-        if contents is not None:
-            filetype = filename.split('.')[-1].lower()
-            if filetype in ['csv', 'h5mu', 'h5ad']:
-                global chunks
-                global grid_cj
-                global trajectories
-                global modalities
-                global var_dict
-                global h5_file
-                global grid_trajectories
-                global single_trajectory
-                global chunks
-                global df
-                global data_type
-                grid_cj = None
-                trajectories = None
-                modalities = None
-                var_dict = None
-                h5_file = None
-                grid_trajectories = None
-                single_trajectory = None
-                data_type = filetype
-                df = parse_data(filename, filetype)
-                return dmc.Text(
-                    children=f'Succesfully uploaded {filename}',
-                    weight=WEIGHT_TEXT,
-                    color=GREEN_SUCCESS_TEXT,
-                    style={'marginTop': 10})
-            else:
-                return dmc.Text(
-                    children=f'There was an error processing {filename}.\
-                        Are you sure the file has the right format?',
-                    weight=WEIGHT_TEXT,
-                    color=RED_ERROR_TEXT,
-                    style={'marginTop': 10})
-        else:
-            raise PreventUpdate
 
+    if args.file != IMPOSSIBLE_NAME:
+        content_data = False
+        filename = args.file
+        if not os.path.exists(filename):
+            return dmc.Text(
+                children=f'Error. File {filename} does not exist',
+                weight=WEIGHT_TEXT,
+                color=RED_ERROR_TEXT,
+                style={'marginTop': 10})            
+        filetype = filename.split('.')[-1].lower()
+    else:
+        _, content_data = contents.split(',')
+        filetype = upload_filename.split('.')[-1].lower()
+        filename = upload_filename
+
+    if filetype in ['csv', 'h5mu', 'h5ad']:
+        global chunks
+        global grid_cj
+        global trajectories
+        global modalities
+        global var_dict
+        global h5_file
+        global grid_trajectories
+        global single_trajectory
+        global chunks
+        global df
+        global data_type
+        grid_cj = None
+        trajectories = None
+        modalities = None
+        var_dict = None
+        h5_file = None
+        grid_trajectories = None
+        single_trajectory = None
+        data_type = filetype
+        df = parse_data(filename, filetype, content_data)
+        return dmc.Text(
+            children=f'Succesfully uploaded {filename}',
+            weight=WEIGHT_TEXT,
+            color=GREEN_SUCCESS_TEXT,
+            style={'marginTop': 10})
+    else:
+        return dmc.Text(
+            children=f'There was an error processing {filename}.\
+                Are you sure the file has the right format?',
+            weight=WEIGHT_TEXT,
+            color=RED_ERROR_TEXT,
+            style={'marginTop': 10})
+
+
+@app.callback(
+    Output('submit_upload', 'children'),
+    Input('upload_data', 'filename'),
+)
+def update_upload_button_name(filename):
+    if filename is None:
+        return 'Upload data'
+    else:
+        return f'Upload {filename}'
+    
 
 @app.callback(
     Output('select_x', 'data'),
@@ -639,7 +677,7 @@ def upload_data_update_output(submitted, contents, filename):
     Output('select_w', 'data'),
     Output('scatter_feature', 'data'),
     Output('scatter_hover_features', 'data'),
-    Input('output_data_upload', 'children')
+    Input('output_data_upload', 'children'),
 )
 def update_coordinates_selectors(output):
     if output is None:
@@ -886,17 +924,6 @@ def update_heatmap_custom_features(search_value, modality):
     else:
         raise PreventUpdate
     return options
-
-
-@app.callback(
-    Output('submit_upload', 'children'),
-    Input('upload_data', 'filename')
-)
-def correct_upload_button_name(filename):
-    if filename is None:
-        return 'Upload data'
-    else:
-        return f'Upload {filename}'
 
 
 @app.callback(
