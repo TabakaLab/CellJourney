@@ -3,11 +3,12 @@
 Cell Journey is an open-source tool for interactive exploration and analysis of single-cell trajectories. It allows operating in three-dimensional space at the level of the entire dataset and individual cells. Each implemented visualization comes with several parameters, allowing versatile and quick customization. The resulting graphs can be saved as raster graphics, vector graphics, or interactive visualization in a standalone html file format.
 Features
 
- - Analyze datasets in csv, h5ad, and h5mu formats.
- - Visualize 3D scatter plots, cone plots, streamlines, and streamlets.
  - Quick and straightforward configuration.
- - Data filtering along with various plot customizations.
  - Explore multiple features simultaneously.
+ - Analyze datasets in csv, h5ad, and h5mu formats.
+ - Data filtering along with various plot customizations.
+ - Visualize 3D scatter plots, cone plots, streamlines, and streamlets.
+ - Represent feature activity values in a 3D embedding by volume plots.
  - Automated differential gene expression analysis for calculated trajectories.
  - Save publication-ready figures as well as interactive visualizations.
 
@@ -49,7 +50,7 @@ Cell Journey is based on many libraries that are necessary for the toolkit to ru
 ```
 pip install -r /path/to/celljourney/requirements.txt
 ```
-Please replace the example path `/path/to/celljourney/` with one corresponding to your system's Cell Journey location. Remember to install the dependencies **after** activating the virtual environment.
+Please replace the example path `/path/to/celljourney/` with one corresponding to your system's Cell Journey location. Remember to install the dependencies after activating the virtual environment.
 
 #### Run the main script
 To run Cell Journey, you need to run the python script `celljourney.py`
@@ -64,7 +65,7 @@ python celljourney.pl --port 8081
 ```
 If the default or user-designated port is already occupied, the program will not run. If the user wants to run several Cell Journey sessions simultaneously, a different port should be designated for each session.
 
-To terminate the program, you must abort the `celljourney.py` script. This can be done in the shell where the script was run using the `ctrl+z` key combination.
+To terminate the program, you must abort the `celljourney.py` script. This can be done in the shell where the script was run using the `ctrl+c` key combination.
 
 ## Learn more
 
