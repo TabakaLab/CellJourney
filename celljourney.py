@@ -144,6 +144,7 @@ def parse_data(filename, filetype, content_data):
     elif filetype == 'csv':
         if custom_path is None:
             buffer = io.StringIO(decoded.decode('utf-8'))
+            df = pd.read_csv(buffer)
         else:
             df = pd.read_csv(filename)
     else:
