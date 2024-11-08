@@ -1,4 +1,4 @@
-# Cell Journey
+## Cell Journey <img src="https://raw.githubusercontent.com/TabakaLab/CellJourney/refs/heads/main/assets/favicon.ico" align="left"> 
 
 Cell Journey is an open-source tool for interactive exploration and analysis of single-cell trajectories. It allows operating in three-dimensional space at the level of the entire dataset and individual cells. Each implemented visualization comes with several parameters, allowing versatile and quick customization. The resulting graphs can be saved as raster graphics, vector graphics, or interactive visualization in a standalone html file format.
 Features
@@ -12,10 +12,10 @@ Features
  - Automated differential gene expression analysis for calculated trajectories.
  - Save publication-ready figures as well as interactive visualizations.
 
-<p align="center"><img src="https://raw.githubusercontent.com/TabakaLab/CellJourney/refs/heads/main/assets/demo.png" width="700px"/></p>
-<p align="center">Go to the <a href="https://tabakalab.github.io/CellJourney">documentation page</a> and watch the <a href="https://tabakalab.github.io/CellJourney/assets/demo.webm">demo video</a>.</p>
+<p align="center"><img src="https://raw.githubusercontent.com/TabakaLab/CellJourney/refs/heads/main/assets/demo.png" width="900px" align="center"></p>
+<p align="center">Go to the <a href="https://tabakalab.github.io/CellJourney">documentation page</a> and watch the <a href="https://tabakalab.github.io/CellJourney/assets/demo2.webm">demo video</a>.</p>
 
-## Installation
+## ⚡ Installation
 
 In order to install Cell Journey, it is recommended to create a virtual environment in which all the required dependencies can be installed. The installation process consists of the following steps:
 
@@ -24,14 +24,14 @@ In order to install Cell Journey, it is recommended to create a virtual environm
  - Install dependencies.
  - Run the main script.
 
-#### Download Cell Journey
+#### 🔅 Download Cell Journey
 To download Cell Journey, execute the following command:
 ```
 git clone https://github.com/TabakaLab/CellJourney.git
 ```
 or click on the **<> Code** button, and then select **Download ZIP**. After downloading and extracting the archive, navigate to the Cell Journey's main directory.
 
-#### Create and activate virtual environment
+#### 🔅 Create and activate virtual environment
 You can create a virtual environment using [venv](https://docs.python.org/3/library/venv.html) or [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html). Using conda is recommended as it provides a more convenient way of configuring specific python version, in this case 3.11.7.
 
 **Venv**
@@ -45,14 +45,14 @@ conda create --name cjenv python=3.11.7
 conda activate cjenv
 ```
 
-#### Install dependencies
+#### 🔅 Install dependencies
 Cell Journey is based on many libraries that are necessary for the toolkit to run correctly. These dependencies can be installed using the command
 ```
 pip install -r /path/to/celljourney/requirements.txt
 ```
 Please replace the example path `/path/to/celljourney/` with one corresponding to your system's Cell Journey location. Remember to install the dependencies after activating the virtual environment.
 
-#### Run the main script
+#### 🔅 Run the main script
 To run Cell Journey, you need to run the python script `celljourney.py`
 ```
 python /path/to/celljourney/celljourney.py
@@ -67,7 +67,7 @@ If the default or user-designated port is already occupied, the program will not
 
 To terminate the program, you must abort the `celljourney.py` script. This can be done in the shell where the script was run using the `ctrl+c` key combination.
 
-## Learn more
+## ⚡ Learn more
 
 To learn more, including how to use the Cell Journey, please visit the documentation page at [TabakaLab.github.io/CellJourney](https://TabakaLab.github.io/CellJourney).
 
