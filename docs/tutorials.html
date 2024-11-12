@@ -56,6 +56,16 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#generating-3d-data">Generating 3D Data</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#reducing-the-file-size">Reducing the file size</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#recreating-article-figures">Recreating article figures</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#pancreatic-endocrinogenesis">Pancreatic endocrinogenesis</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#bone-marrow-mononuclear-progenitors">Bone marrow mononuclear progenitors</a>
+    </li>
+        </ul>
+    </li>
     </ul>
                 </li>
               </ul>
@@ -88,7 +98,7 @@
               
                 <h2 id="tutorials">Tutorials</h2>
 <h3 id="generating-3d-data">Generating 3D Data</h3>
-<p>To generate the dataset, we will use the built-in pancreas dataset from <a href="https://scvelo.readthedocs.io">scvelo</a>. The process of obtaining the velocity vector components is detailed in the scvelo tutorials. We will focus on one key difference that enables generating three-dimensional data.</p>
+<p>To generate example data, we will use the built-in pancreas dataset from <a href="https://scvelo.readthedocs.io">scvelo</a>. The process of obtaining the velocity vector components is detailed in the scvelo tutorials. We will focus on one key difference that enables generating three-dimensional data.</p>
 <pre><code>adata = scv.datasets.pancreas()
 adata
 </code></pre>
@@ -139,6 +149,7 @@ adata
     obsp: 'distances', 'connectivities'
 </code></pre>
 <p>The velocity vectors have been successfully determined and are located in <code>obsm</code> as <code>velocity_umap</code>.</p>
+<h3 id="reducing-the-file-size">Reducing the file size</h3>
 <p>Dash, which is used to create Cell Journey, has its limitations. Loading very large files can be automatically interrupted. Therefore, files for the Cell Journey analysis should be stripped of unnecessary data, especially large dense matrices. For the pancreas dataset it is sufficient to limit the data to what is contained in <code>var</code>, <code>obs</code>, <code>obsm</code>, and the sparse <code>X</code> matrix.</p>
 <pre><code>adata_slim = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var, obsm=adata.obsm)
 adata_slim.write(&quot;pancreas_slim.h5ad)
@@ -154,6 +165,113 @@ print(f&quot;Full dataset: {full_dataset_size:.2f} MB, slim dataset: {slim_datas
 </code></pre>
 <pre><code>Full dataset: 1756.84 MB, slim dataset: 14.64 MB
 </code></pre>
+<h3 id="recreating-article-figures">Recreating article figures</h3>
+<h4 id="pancreatic-endocrinogenesis">Pancreatic endocrinogenesis</h4>
+<ol>
+<li>Upload data and select coordinates: Load <code>pancreas.h5ad</code> provided in the <a href="https://github.com/TabakaLab/CellJourney/tree/main/datasets">datasets directory</a>.</li>
+<li>Upload data and select coordinates: Select <em>X_umap(1)</em>, <em>X_umap(2)</em>, and <em>X_umap(3)</em> as X, Y, and Z coordinates. </li>
+<li>Upload data and select coordinates: Select <em>velocity_umap (1)</em>, <em>velocity_umap (2)</em>, <em>velocity_umap (3)</em> as U, V, and W coordinates.</li>
+<li>Upload data and select coordinates: Click <code>Submit selected coordinates</code>.</li>
+<li>Upload data and select coordinates: Set <code>Target sum</code> to 10000 and click <code>Lognormalize</code>.</li>
+<li>Global plot configuration: change <code>Axes</code> switch to <code>Hide</code>.</li>
+</ol>
+<p><strong>Figure C (SCATTER PLOT)</strong></p>
+<ol>
+<li>Scatter plot: select <code>clusters_coarse</code> from the <code>Select feature</code> dropdown menu.</li>
+<li>Global plot configuration: change <code>Legend: horizontal position</code> and <code>Legend: vertical position</code> to obtain an optimal position, e.g. 0.50 and 0.30 accordingly.</li>
+</ol>
+<p><strong>Figure C (CONE PLOT)</strong></p>
+<ol>
+<li>Cone plot: select <code>rainbow</code> from the <code>Color scale</code> dropdown menu.</li>
+<li>Cone plot: set <code>Cone size</code> to <code>12.00</code>. </li>
+</ol>
+<p><strong>Figure C (STREAMLINES)</strong></p>
+<ol>
+<li>Streamline plot: set <code>Grid size</code> to 20, <code>Number of steps</code> to 500, <code>Step size</code> to 2.00, and <code>Difference threshold</code> to 0.001.</li>
+<li>Streamline plot: click <code>Generate trajectories (streamlines and streamlets)</code>.</li>
+<li>Streamline plot: uncheck <code>Combine trajectories with the scatter plot</code> switch.</li>
+<li>Streamline plot: change <code>Line width</code> to 4.0.</li>
+</ol>
+<p><strong>Figure C (STREAMLETS)</strong></p>
+<ol>
+<li>Repeat the steps for Figure C (STREAMLINES).</li>
+<li>Streamline plot: change <code>Show streamlines</code> to <code>Show streamlets</code>.</li>
+<li>Streamline plot: set <code>Streamlets length</code> to 10.</li>
+<li>Streamline plot: click <code>Update streamlets</code>.</li>
+<li>Streamline plot: change <code>Color scale</code> to Reds.</li>
+</ol>
+<p><strong>Figure C (SCATTER + VOLUME PLOT)</strong></p>
+<ol>
+<li>Scatter plot: input Serping1 in the <code>Modality feature</code></li>
+<li>Scatter plot: select Turbo from the <code>Built-in continuous color scale</code> dropdown menu. </li>
+<li>Scatter plot: change <code>Add volume plot to continuous feature</code> and <code>Single color scater when volume is plotted</code> to ON. </li>
+<li>Scatter plot: select the second color from the left in the second row of the suggested colors (light grey box).</li>
+<li>Scatter plot: select linear from the <code>Radial basis function</code> dropdown menu.</li>
+<li>Scatter plot: change <code>Point size</code> to 1.00, <code>Volume plot transparency cut-off quantile</code> to 50, <code>Volume plot opacity</code> to 0.06, <code>Gaussian filter standard deviation multiplier</code> to 2.00, and <code>Radius scaler</code> to 1.300. </li>
+</ol>
+<p><strong>Figure C (SCATTER + STREAMLINES)</strong></p>
+<ol>
+<li>Repeat the steps for Figure C (STREAMLINES).</li>
+<li>Streamline plot: change <code>Combine trajectories with the scatter plot</code> to ON.</li>
+<li>Streamline plot: set <code>Subset current number of trajectories</code> to 70 and click <code>Confirm</code>.</li>
+<li>Scatter plot: change <code>Built-in continuous color scale</code> to Balance.</li>
+</ol>
+<p><strong>Figure B</strong></p>
+<ol>
+<li>Scatter plot: select clusters from the <code>Select feature</code> dropdown menu.</li>
+<li>Scatter plot: change <code>Use custom color palette</code> to ON, and paste #1DACD6 #FFAACC #66FF66 #0066FF #FF7A00 #FC2847 #FDFF00 #000000 into the <code>Space-separated list of color hex values (max 20 colors)</code> field.</li>
+<li>Streamline plot: change <code>Color scale</code> to Greys, and <code>Line width</code> to 10.0.</li>
+<li>Cell Journey (trajectory): click <code>Generate grid</code>.</li>
+<li>Cell Journey (trajectory): set <code>Number of clusters</code> to 8, <code>Number of automatically selected features</code> to 200, <code>Tube segments</code> to 25, <code>Features activities shown in heatmap</code> to Relative to first segment, and <code>Highlight selected cells</code> to Don't highlight.</li>
+<li>Click on a random cell from the Ngn3 low EP cluster. Try a few cells within the suggested area if the first one didn't result in an appropriate trajectory.</li>
+</ol>
+<h4 id="bone-marrow-mononuclear-progenitors">Bone marrow mononuclear progenitors</h4>
+<ol>
+<li>Upload data and select coordinates: Load <code>bone_marrow.h5ad</code> provided in the <a href="https://github.com/TabakaLab/CellJourney/tree/main/datasets">datasets directory</a>.</li>
+<li>Upload data and select coordinates: Select <em>RNA: X_umap(1)</em>, <em>RNA: X_umap(2)</em>, and <em>RNA: X_umap(3)</em> as X, Y, and Z coordinates. </li>
+<li>Upload data and select coordinates: Select <em>RNA: velocity_umap(1)</em>, <em>RNA: velocity_umap(2)</em>, and <em>RNA: velocity_umap(3)</em> as U, V, and W coordinates.</li>
+<li>Upload data and select coordinates: Click <code>Submit selected coordinates</code>.</li>
+<li>Upload data and select coordinates: Select RNA modality, set <code>Target sum</code> to 10000, and click <code>Lognormalize</code>. Select ADT modality, set <code>Target sum</code> to 10000, and click <code>Lognormalize</code>.</li>
+<li>Global plot configuration: change <code>Axes</code> switch to <code>Hide</code>.</li>
+</ol>
+<p><strong>Figure D (SCATTER PLOT + TRAJECTORY + TUBE CELLS)</strong></p>
+<ol>
+<li>Global plot configuration: change <code>Legend</code> switch to Hide.</li>
+<li>Scatter plot: change <code>Point size</code> to 1.00.</li>
+<li>Scatter plot: select second color from the left in the second row of the suggested colors (light grey box).</li>
+<li>Streamline plot: set <code>Grid size</code> to 25, <code>Number of steps</code> to 500, and <code>Difference threshold</code> to 0.001, and click <code>Generate trajectories (streamlines and streamlets)</code>.</li>
+<li>Streamline plot: change <code>Show streamlines</code> to <code>Show streamlets</code>, set <code>Stremlets length</code> to 10, and click <code>Update streamlets</code>.</li>
+<li>Streamline plot: change <code>Color scale</code> to Jet.</li>
+<li>Scatter plot: select ADT from the <code>Modality</code> dropdown menu and input CD34 in the field below.</li>
+<li>Scatter plot: select Reds from the <code>Built-in continuous color scale</code> field.</li>
+<li>Scatter plot: change <code>Add volume plot to continuous feature</code> and <code>Single color scater when volume is plotted</code> to ON. </li>
+<li>Scatter plot: set <code>Volume plot transparency cut-off quantile</code> to 55, <code>Volume plot opacity</code> to 0.04, <code>Gaussian filter standard deviation multiplier</code> to 3.00, and <code>Radius scaler</code> to 1.300. </li>
+</ol>
+<p><strong>Figure D (SCATTER + STREAMLETS + VOLUME PLOT)</strong></p>
+<ol>
+<li>Streamline plot: change <code>Lide width</code> to 5.0.</li>
+<li>Cell Journey (trajectory): click <code>Generate grid</code>.</li>
+<li>Cell Journey (trajectory): set <code>Tube segments</code> to 5 and <code>Highlight selected cells</code> to Each segment separately.</li>
+<li>Global plot configuration: change <code>Legend: horizontal position</code> and <code>Legend: vertical position</code> to obtain optimal position, e.g. to 0.20 in both cases.</li>
+</ol>
+<p><strong>Figure D (RNA MODALITY HEATMAP)</strong></p>
+<ol>
+<li>Cell Journey (trajectory): click <code>Generate grid</code>.</li>
+<li>Cell Journey (trajectory): set <code>Step size</code> to 2.00, <code>Tube segments</code> to 20, <code>Number of clusters</code> to 8, <code>Number of automatically selected features</code> to 50, and <code>Heatmap color scale</code> to Inferno.</li>
+<li>Scatter plot: select RNA from the <code>Modality</code> dropdown menu.</li>
+<li>Click on a random cell from the center the point cloud. Try few cells within the suggested area if the first one didn't result in an appropriate trajectory.</li>
+<li>Cell Journey (trajectory): select Box plot from the <code>Plot type</code> dropdown menu, set <code>Trendline</code> to Median-based cubic spline.</li>
+<li>Find HBB gene by hovering the heatmap. Click on any segment to obtain <strong>Figure D (RNA: HBB ALONG TRAJECTORY)</strong>.</li>
+</ol>
+<p><strong>Figure D (ADT MODALITY HEATMAP)</strong></p>
+<ol>
+<li>Cell Journey (trajectory): click <code>Generate grid</code>.</li>
+<li>Cell Journey (trajectory): set <code>Step size</code> to 2.00, <code>Tube segments</code> to 20, <code>Number of clusters</code> to 3, <code>Number of automatically selected features</code> to 10, and <code>Heatmap color scale</code> to Inferno.</li>
+<li>Scatter plot: select ADT from the <code>Modality</code> dropdown menu.</li>
+<li>Click on a random cell from the center of the point cloud. Try a few cells within the suggested area if the first one didn't result in an appropriate trajectory.</li>
+<li>Cell Journey (trajectory): select Box plot from the <code>Plot type</code> dropdown menu, set <code>Trendline</code> to Median-based cubic spline.</li>
+<li>Find CD34 gene by hovering the heatmap. Click on any segment to obtain <strong>Figure D (ADT: CD34 ALONG TRAJECTORY)</strong>.</li>
+</ol>
               
             </div>
           </div><footer>
