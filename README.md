@@ -12,7 +12,7 @@ Features
  - Automated differential gene expression analysis for calculated trajectories.
  - Save publication-ready figures as well as interactive visualizations.
 
-<p align="center"><img src="https://raw.githubusercontent.com/TabakaLab/CellJourney/refs/heads/main/assets/demo.png" width="900px" align="center"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/TabakaLab/CellJourney/refs/heads/main/assets/demo.gif" width="750px" align="center"></p>
 <p align="center">Go to the <a href="https://tabakalab.github.io/CellJourney">documentation page</a> and watch the <a href="https://tabakalab.github.io/CellJourney/assets/demo2.webm">demo video</a>.</p>
 
 ## ⚡ Installation
