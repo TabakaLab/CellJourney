@@ -1405,14 +1405,36 @@ Main features:
                     dcc.Markdown(
 '''Currently Cell Journey supports three filetypes: `csv`, `h5ad`, and `h5mu`. 
 To use the toolkit for a different data type, you need to convert it beforehand. 
-R users can convert Seurat object to h5ad using [SeuratDisk](https://mojaveazure.github.io/seurat-disk/index.html) 
-(example below) or with the [zellkonverter](https://theislab.github.io/zellkonverter/) package and its `writeH5AD()` 
-function.
 
-If you would like to convert `SingleCellExperiment` to `h5ad` consider using [reticulate](https://rstudio.github.io/reticulate/) package ([example code](https://cellgeni.readthedocs.io/en/0.0.1/visualisations.html#loom-h5ad)). 
-`Loom` files can be converted with the following code: [link](https://cellgeni.readthedocs.io/en/0.0.1/visualisations.html#loom-h5ad).
+If you're working in R, you can convert Seurat or SingleCellExperiment objects using one of the following tools:
 
-In the case of multimodal data, R users can apply `WriteH5MU()` from the [MuDataSeurat](https://pmbio.github.io/MuDataSeurat/index.html) package.'''
+- **[SeuratDisk](https://mojaveazure.github.io/seurat-disk/index.html)**
+```r
+library(SeuratDisk)
+SaveH5Seurat(seurat_object, filename = "dataset.h5Seurat")
+Convert("dataset.h5Seurat", dest = "h5ad")
+```
+
+- **[zellkonverter] (https://theislab.github.io/zellkonverter/)**
+```r
+library(zellkonverter)
+writeH5AD(sce_object, "dataset.h5ad")
+```
+
+- **[sceasy](https://github.com/cellgeni/sceasy)**
+```r
+library(sceasy)
+sceasy::convertFormat(seurat_object, from="seurat", to="anndata", outFile="dataset.h5ad")
+```
+
+For multimodal data, use `WriteH5MU()` from the **[MuDataSeurat](https://pmbio.github.io/MuDataSeurat/)** package:
+```r
+library(MuDataSeurat)
+WriteH5MU(seurat_object, "dataset.h5mu")
+```
+
+If your data is in a format not covered above (e.g. loom), check out the [CellGenie guide](https://cellgeni.readthedocs.io/en/latest/visualisations.html#data-conversion) for conversion examples.
+'''
                     )
                 ),
             ],
