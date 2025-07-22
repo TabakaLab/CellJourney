@@ -32,7 +32,8 @@ from src.layout import layout
 from src.parameters import *
 
 parser = argparse.ArgumentParser(description='Cell Journey')
-parser.add_argument('--port', type=int, default=8080)
+default_port = int(os.getenv("PORT", 8080))
+parser.add_argument('--port', type=int, default=default_port)
 parser.add_argument('--debug', type=bool, default=False)
 parser.add_argument('--file', type=str, default=None)
 args = parser.parse_args()
