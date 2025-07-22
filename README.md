@@ -67,6 +67,23 @@ If the default or user-designated port is already occupied, the program will not
 
 To terminate the program, you must abort the `celljourney.py` script. This can be done in the shell where the script was run using the `ctrl+c` key combination.
 
+## ⚡ Docker
+
+Build the Docker image from the main directory containing the Dockerfile:
+```
+docker build -t celljourney .
+```
+
+Run the container
+```
+docker run -p 8080:8080 celljourney
+```
+
+To use a custom port (e.g., 8082), pass the `PORT` environment variable and map the port accordingly:
+```
+docker run -e PORT=8082 -p 8082:8082 celljourney
+```
+
 ## ⚡ Learn more
 
 To learn more, including how to use the Cell Journey, please visit the documentation page at [TabakaLab.github.io/CellJourney](https://TabakaLab.github.io/CellJourney).
