@@ -24,7 +24,7 @@ upload_data_accordion = dmc.Accordion(
                         html.Div(
                             [
                                 dcc.Upload(
-                                    'Drag and drop or select a file to upload', 
+                                    'Drag and drop or click here to select a file to upload', 
                                     id='upload_data', 
                                     multiple=False,
                                     style={
@@ -65,7 +65,6 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     label="Y-coordinate",
@@ -74,7 +73,6 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'), 
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     label="Z-coordinate",
@@ -83,7 +81,6 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:chart-scatter-light'),
                                                     style=SELECT_STYLE,
-                                                    value='X_umap (3)'
                                                 ),
                                             ],
                                         ),
@@ -96,7 +93,6 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (1)'
                                                 ),
                                                 dmc.Select(
                                                     label="V-coordinate",
@@ -105,7 +101,6 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (2)'
                                                 ),
                                                 dmc.Select(
                                                     label="W-coordinate",
@@ -114,7 +109,6 @@ upload_data_accordion = dmc.Accordion(
                                                     searchable=True,
                                                     icon=DashIconify(icon='ph:arrows-out-cardinal-thin'),
                                                     style=SELECT_STYLE,
-                                                    value='velocity_umap (3)'
                                                 ),
                                             ]
                                         )
@@ -310,6 +304,13 @@ save_accordion = dmc.Accordion(
                                         'backgroundColor': BLUE_BACKGROUND
                                     }
                                 ),
+                                html.Div(
+                                    id='export_figure_message', 
+                                    style={
+                                        'width': '100%', 
+                                        'textAlign': 'center'
+                                    }
+                                ),
                                 dmc.Space(h=10),
                                 dmc.Divider(
                                     label='Tables',
@@ -337,6 +338,13 @@ save_accordion = dmc.Accordion(
                                     style={
                                         'width': '100%', 
                                         'backgroundColor': BLUE_BACKGROUND
+                                    }
+                                ),
+                                html.Div(
+                                    id='export_table_message', 
+                                    style={
+                                        'width': '100%', 
+                                        'textAlign': 'center'
                                     }
                                 ),
                             ]

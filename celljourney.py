@@ -17,6 +17,8 @@ import plotly.express as px
 import dash
 import dash_mantine_components as dmc
 import dash_bootstrap_components as dbc
+import webbrowser
+from threading import Timer
 from dash.exceptions import PreventUpdate
 from dash import html, dcc, callback, Input, Output, State, ctx
 from coloraide import Color
@@ -34,8 +36,9 @@ from src.parameters import *
 parser = argparse.ArgumentParser(description='Cell Journey')
 default_port = int(os.getenv("PORT", 8080))
 parser.add_argument('--port', type=int, default=default_port)
-parser.add_argument('--debug', type=bool, default=False)
+parser.add_argument('--debug', action='store_true', default=False)
 parser.add_argument('--file', type=str, default=None)
+parser.add_argument('--suppressbrowser', action='store_true', default=False)
 args = parser.parse_args()
 
 pd.options.mode.chained_assignment = None
@@ -72,6 +75,8 @@ app = dash.Dash(
 app.title = 'Cell Journey'
 app.layout = layout
 
+def open_browser():
+	webbrowser.open_new(f"http://localhost:{args.port}")
 
 def parse_data(filename, filetype, content_data):
     global modalities
@@ -545,6 +550,7 @@ def rk4_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale,
 
 @app.callback(
     Output('savefigure_placeholder', 'children'),
+    Output('export_figure_message', 'children'),
     Input('submit_download', 'n_clicks'),
     Input('scatter_plot', 'figure'),
     Input('cone_plot', 'figure'),
@@ -567,36 +573,46 @@ def rk4_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale,
 def save_figure(clicked, scatter_plot, cone_plot, trajectories_plot, single_trajectory_plot,
                 heatmap_plot, relayout1, relayout2, relayout3, relayout4, relayout5, selected_figure, 
                 filename, format, scale, width, height):
-    if clicked is None:
+
+    if ctx.triggered_id == 'submit_download':
+        try:
+            fig_dict = {
+                    'Scatter plot': scatter_plot,
+                    'Cone plot': cone_plot,
+                    'Trajectories (streamlines/streamlets)': trajectories_plot,
+                    'Single trajectory (Cell Journey)': single_trajectory_plot,
+                    'Heatmap (Cell Journey)': heatmap_plot
+                }
+            fig = go.Figure(fig_dict[selected_figure])
+
+            if filename.endswith('.' + format):
+                output_filename = f'{FIGURES_DIRECTORY}/{filename}'
+            else:
+                output_filename = f'{FIGURES_DIRECTORY}/{filename}.{format}'
+
+            if format == 'html':
+                fig.write_html(output_filename)
+            else:
+                fig.write_image(output_filename, format=format, scale=scale, width=width, height=height)
+
+            return_message = dmc.Text(
+                children=f'Saved {filename}.{format} to the {FIGURES_DIRECTORY} directory',
+                weight=WEIGHT_TEXT,
+                color=GREEN_SUCCESS_TEXT,
+                style={'marginTop': 10})
+
+            return None, return_message
+        except:
+            raise PreventUpdate
+    else:
         raise PreventUpdate
+
     
-    if ctx.triggered_id != 'submit_download':
-        return None
-
-    fig_dict = {
-        'Scatter plot': scatter_plot,
-        'Cone plot': cone_plot,
-        'Trajectories (streamlines/streamlets)': trajectories_plot,
-        'Single trajectory (Cell Journey)': single_trajectory_plot,
-        'Heatmap (Cell Journey)': heatmap_plot
-    }
-    fig = go.Figure(fig_dict[selected_figure])
-
-    if filename.endswith('.' + format):
-        output_filename = f'{FIGURES_DIRECTORY}/{filename}'
-    else:
-        output_filename = f'{FIGURES_DIRECTORY}/{filename}.{format}'
-
-    if format == 'html':
-        fig.write_html(output_filename)
-    else:
-        fig.write_image(output_filename, format=format, scale=scale, width=width, height=height)
-
-    return None
 
 
 @app.callback(
     Output('save_table_callback', 'children'),
+    Output('export_table_message', 'children'),
     Input('submit_download_table', 'n_clicks'),
     State('cells_and_segments', 'data'),
     State('heatmap_data_final', 'data'),
@@ -608,28 +624,48 @@ def save_figure(clicked, scatter_plot, cone_plot, trajectories_plot, single_traj
 def save_csv_table(_, tube_cells, heatmap, selected_table, filename, modality):
     global data_type
     global h5_file
+
+    failed_general_message = dmc.Text(
+        children=f'Failed to save {filename}.csv to the {TABLES_DIRECTORY} directory. \
+            Please make sure youir data is in .h5ad or .h5mu format.',
+        weight=WEIGHT_TEXT,
+        color=RED_ERROR_TEXT,
+        style={'marginTop': 10})
+    failed_message = dmc.Text(
+        children=f'Failed to save {filename}.csv to the {TABLES_DIRECTORY} directory. \
+            Please select a trajectory before saving.',
+        weight=WEIGHT_TEXT,
+        color=RED_ERROR_TEXT,
+        style={'marginTop': 10})
+    success_message = dmc.Text(
+        children=f'Saved {filename}.csv to the {TABLES_DIRECTORY} directory',
+        weight=WEIGHT_TEXT,
+        color=GREEN_SUCCESS_TEXT,
+        style={'marginTop': 10})
+    
     if (data_type == 'h5mu' and modality is not None) or (data_type == 'h5ad'):
         if selected_table == 'Heatmap expression':
             try:
                 heatmap_data = pd.read_json(heatmap)
             except:
-                raise PreventUpdate
+                return None, failed_message
             heatmap_data.iloc[::-1].to_csv(f'saved_tables/{filename}.csv')
+            return None, success_message
         elif selected_table == 'Trajectory cells barcodes':
             try:
                 tube_cells_data = pd.read_json(tube_cells)
             except:
-                raise PreventUpdate
+                return None, failed_message
             tube_df = tube_cells_data.loc[tube_cells_data['segment___'] > -1]
             indices = [int(i) for i in tube_df.index]
             final_df = pd.DataFrame({
                 'Cell': h5_file.obs.index[indices].tolist(),
                 'Segment': list(tube_df['segment___'] + 1)})
             final_df.to_csv(f'{TABLES_DIRECTORY}/{filename}.csv')
+            return None, success_message
     else:
-        raise PreventUpdate
-    return None
-    
+        return None, failed_general_message
+        
 
 @app.callback(
     Output('output_data_upload', 'children'),
@@ -653,7 +689,10 @@ def upload_data_update_output(submitted, contents, upload_filename):
                 style={'marginTop': 10})            
         filetype = filename.split('.')[-1].lower()
     else:
-        _, content_data = contents.split(',')
+        try:
+            _, content_data = contents.split(',')
+        except:
+            raise PreventUpdate
         filetype = upload_filename.split('.')[-1].lower()
         filename = upload_filename
 
@@ -683,10 +722,10 @@ def upload_data_update_output(submitted, contents, upload_filename):
 )
 def update_upload_button_name(filename):
     if filename is None:
-        return 'Upload data'
+        return 'Select your data first'
     else:
         clear_memory()
-        return f'Upload {filename}'
+        return f'Click to upload {filename}'
     
 
 @app.callback(
@@ -876,7 +915,7 @@ def set_default_modality(modalities):
 def add_h5mu_dropdown(modality):
     global h5_file
     features = list(h5_file[modality].var.index)
-    return {'display': 'block'}, features[0], None, f"Select custom {modality} features", None
+    return {'display': 'block'}, f'Insert feature name, e.g. {features[0]}', None, f'Select custom {modality} features', None
 
 
 @callback(
@@ -909,7 +948,7 @@ def add_h5ad_dropdown(_):
     global h5_file
     if data_type == 'h5ad' and h5_file is not None:
         features = list(h5_file.var.index)
-        return {'display': 'block'}, features[0], {'display': 'block'}
+        return {'display': 'block'},  f'Input feature name, e.g. {features[0]}', {'display': 'block'}
     else:
         return {'display': 'none'}, '', {'display': 'none'}
 
@@ -2539,4 +2578,6 @@ def cj_plot_scatter(
 
 
 if __name__ == '__main__':
+    if not args.suppressbrowser:
+        Timer(1, open_browser).start()
     app.run_server(debug=args.debug, port=args.port)
