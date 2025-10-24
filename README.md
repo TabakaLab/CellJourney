@@ -34,15 +34,16 @@ or click on the **<> Code** button, and then select **Download ZIP**. After down
 #### 🔅 Create and activate virtual environment
 You can create a virtual environment using [venv](https://docs.python.org/3/library/venv.html) or [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html). Using conda is recommended as it provides a more convenient way of configuring specific python version, in this case 3.11.7.
 
-**Venv**
-```
-python -m venv cjenv
-source cjenv/bin/activate
-```
 **Conda**
 ```
 conda create --name cjenv python=3.11.7
 conda activate cjenv
+```
+
+**Venv**
+```
+python -m venv cjenv
+source cjenv/bin/activate
 ```
 
 #### 🔅 Install dependencies
@@ -53,15 +54,19 @@ pip install -r /path/to/celljourney/requirements.txt
 Please replace the example path `/path/to/celljourney/` with one corresponding to your system's Cell Journey location. Remember to install the dependencies after activating the virtual environment.
 
 #### 🔅 Run the main script
-To run Cell Journey, you need to run the python script `celljourney.py`
+To run the Cell Journey, you need to run the python script `celljourney.py`
 ```
 python /path/to/celljourney/celljourney.py
 ```
-Wait for the following information to show `Dash is running on http://127.0.0.1:8080/` and then navigate to [http://127.0.0.1:8080](http://127.0.0.1:8080).
+The dashboard will open automatically in your browser. To suppress the automatic opening, add the `--suppressbrowser` flag to your command.
+```
+python celljourney.py --suppressbrowser
+```
+Wait for the following information to show `Dash is running on http://127.0.0.1:8080/` and then navigate to `http://127.0.0.1:8080`.
 
 Cell Journey's default port is 8080. If, for some reason, the user would like to work on a different one, run the script with an additional port parameter, such as
 ```
-python celljourney.pl --port 8081
+python celljourney.py --port 8081
 ```
 If the default or user-designated port is already occupied, the program will not run. If the user wants to run several Cell Journey sessions simultaneously, a different port should be designated for each session.
 
@@ -84,7 +89,14 @@ To use a custom port (e.g., 8082), pass the `PORT` environment variable and map 
 docker run -e PORT=8082 -p 8082:8082 celljourney
 ```
 
+## ⚡ Example datasets
+
+ - [Hair folicle](https://github.com/TabakaLab/CellJourney/blob/main/datasets/hair_folicle.csv)
+ - [Mouse pancreatic endocrinogenesis](https://github.com/TabakaLab/CellJourney/blob/main/datasets/pancreas.h5ad)
+ - [human bone marrow mononuclear cell progenitors](https://github.com/TabakaLab/CellJourney/blob/main/datasets/bone_marrow.h5mu)
+
+
 ## ⚡ Learn more
 
-To learn more, including how to use the Cell Journey, please visit the documentation page at [TabakaLab.github.io/CellJourney](https://TabakaLab.github.io/CellJourney).
+To learn more about the software, including how to utilise all its features, please visit the documentation page at [TabakaLab.github.io/CellJourney](https://TabakaLab.github.io/CellJourney).
 
