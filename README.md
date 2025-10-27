@@ -58,7 +58,7 @@ To run the Cell Journey, you need to run the python script `celljourney.py`
 ```
 python /path/to/celljourney/celljourney.py
 ```
-The dashboard will open automatically in your browser. To suppress the automatic opening, add the `--suppressbrowser` flag to your command.
+If the software is not in the Docker container (see Docker section below) the dashboard will open automatically in your browser. To suppress the automatic opening, add the `--suppressbrowser` flag to your command.
 ```
 python celljourney.py --suppressbrowser
 ```
