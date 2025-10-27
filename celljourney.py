@@ -36,8 +36,9 @@ from src.parameters import *
 parser = argparse.ArgumentParser(description='Cell Journey')
 default_port = int(os.getenv("PORT", 8080))
 parser.add_argument('--port', type=int, default=default_port)
-parser.add_argument('--debug', action='store_true', default=False)
 parser.add_argument('--file', type=str, default=None)
+parser.add_argument('--maxfilesize', type=float, default=10.0)
+parser.add_argument('--debug', action='store_true', default=False)
 parser.add_argument('--suppressbrowser', action='store_true', default=False)
 args = parser.parse_args()
 
@@ -48,8 +49,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 np.seterr(divide='ignore', invalid='ignore')
 
-os.makedirs(f'./{FIGURES_DIRECTORY}', exist_ok=True)
-os.makedirs(f'./{TABLES_DIRECTORY}', exist_ok=True)
 
 df = None
 chunks = None
@@ -74,6 +73,7 @@ app = dash.Dash(
 )
 app.title = 'Cell Journey'
 app.layout = layout
+app.server.config['MAX_CONTENT_LENGTH'] = 1073741824 * args.maxfilesize
 
 def open_browser():
 	webbrowser.open_new(f"http://localhost:{args.port}")
@@ -549,8 +549,7 @@ def rk4_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale,
 
 
 @app.callback(
-    Output('savefigure_placeholder', 'children'),
-    Output('export_figure_message', 'children'),
+    Output("export_results", "data"),
     Input('submit_download', 'n_clicks'),
     Input('scatter_plot', 'figure'),
     Input('cone_plot', 'figure'),
@@ -563,109 +562,75 @@ def rk4_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale,
     Input('cj_scatter_plot', 'relayoutData'),
     Input('cj_x_plot', 'relayoutData'),
     State('save_figure', 'value'),
-    State('save_filename', 'value'),
     State('save_format', 'value'),
     State('save_scale', 'value'),
     State('save_width', 'value'),
     State('save_height', 'value'),
+    State('cells_and_segments', 'data'),
+    State('heatmap_data_final', 'data'),
+    State('scatter_modality', 'value'),
     prevent_initial_call=True
 )
-def save_figure(clicked, scatter_plot, cone_plot, trajectories_plot, single_trajectory_plot,
-                heatmap_plot, relayout1, relayout2, relayout3, relayout4, relayout5, selected_figure, 
-                filename, format, scale, width, height):
+def export_results(_, scatter_plot, cone_plot, trajectories_plot, single_trajectory_plot,
+                heatmap_plot, relayout1, relayout2, relayout3, relayout4, relayout5, selected_data, 
+                format, scale, width, height, tube_cells, heatmap, modality):
+
+    global data_type
+    global h5_file
+
+    failed_general_message = dmc.Text(
+        children=f'Failed to save {selected_data}. \
+            Please make sure your data is in .h5ad or .h5mu format.',
+        weight=WEIGHT_TEXT,
+        color=RED_ERROR_TEXT,
+        style={'marginTop': 10})
 
     if ctx.triggered_id == 'submit_download':
         try:
             fig_dict = {
-                    'Scatter plot': scatter_plot,
-                    'Cone plot': cone_plot,
-                    'Trajectories (streamlines/streamlets)': trajectories_plot,
-                    'Single trajectory (Cell Journey)': single_trajectory_plot,
-                    'Heatmap (Cell Journey)': heatmap_plot
+                    'Figure - Scatter plot': scatter_plot,
+                    'Figure - Cone plot': cone_plot,
+                    'Figure - Trajectories (streamlines/streamlets)': trajectories_plot,
+                    'Figure - Single trajectory (Cell Journey)': single_trajectory_plot,
+                    'Figure - Heatmap (Cell Journey)': heatmap_plot,
                 }
-            fig = go.Figure(fig_dict[selected_figure])
 
-            if filename.endswith('.' + format):
-                output_filename = f'{FIGURES_DIRECTORY}/{filename}'
+            if selected_data.startswith('Figure'):
+                fig = go.Figure(fig_dict[selected_data])
+                if format == 'html':
+                    figure_bytes = fig.to_html(full_html=True, include_plotlyjs='cdn').encode('utf-8')
+                else:
+                    figure_bytes = fig.to_image(format=format, scale=scale, width=width, height=height)
+
+                return dcc.send_bytes(lambda f: f.write(figure_bytes), selected_data)
             else:
-                output_filename = f'{FIGURES_DIRECTORY}/{filename}.{format}'
+                if (data_type == 'h5mu' and modality is not None) or (data_type == 'h5ad'):
+                    if selected_data == 'Table - Heatmap expression':
+                        try:
+                            heatmap_data = pd.read_json(heatmap)
+                        except:
+                            raise PreventUpdate
+                        return dcc.send_data_frame(heatmap_data.iloc[::-1].to_csv, selected_data+".csv", index=False)
+                    elif selected_data == 'Table - Trajectory cells barcodes':
+                        try:
+                            tube_cells_data = pd.read_json(tube_cells)
+                            tube_df = tube_cells_data.loc[tube_cells_data['segment___'] > -1]
+                            indices = [int(i) for i in tube_df.index]
+                            final_df = pd.DataFrame({
+                                'Cell': h5_file.obs.index[indices].tolist(),
+                                'Segment': list(tube_df['segment___'] + 1)})
+                        except:
+                            raise PreventUpdate
 
-            if format == 'html':
-                fig.write_html(output_filename)
-            else:
-                fig.write_image(output_filename, format=format, scale=scale, width=width, height=height)
+                        return dcc.send_data_frame(final_df.to_csv, selected_data+".csv", index=False)
 
-            return_message = dmc.Text(
-                children=f'Saved {filename}.{format} to the {FIGURES_DIRECTORY} directory',
-                weight=WEIGHT_TEXT,
-                color=GREEN_SUCCESS_TEXT,
-                style={'marginTop': 10})
-
-            return None, return_message
+                else:
+                    raise PreventUpdate
         except:
             raise PreventUpdate
     else:
         raise PreventUpdate
 
-    
-
-
-@app.callback(
-    Output('save_table_callback', 'children'),
-    Output('export_table_message', 'children'),
-    Input('submit_download_table', 'n_clicks'),
-    State('cells_and_segments', 'data'),
-    State('heatmap_data_final', 'data'),
-    State('select_table', 'value'),
-    State('save_filename_table', 'value'),
-    State('scatter_modality', 'value'),
-    prevent_initial_call=True
-)
-def save_csv_table(_, tube_cells, heatmap, selected_table, filename, modality):
-    global data_type
-    global h5_file
-
-    failed_general_message = dmc.Text(
-        children=f'Failed to save {filename}.csv to the {TABLES_DIRECTORY} directory. \
-            Please make sure youir data is in .h5ad or .h5mu format.',
-        weight=WEIGHT_TEXT,
-        color=RED_ERROR_TEXT,
-        style={'marginTop': 10})
-    failed_message = dmc.Text(
-        children=f'Failed to save {filename}.csv to the {TABLES_DIRECTORY} directory. \
-            Please select a trajectory before saving.',
-        weight=WEIGHT_TEXT,
-        color=RED_ERROR_TEXT,
-        style={'marginTop': 10})
-    success_message = dmc.Text(
-        children=f'Saved {filename}.csv to the {TABLES_DIRECTORY} directory',
-        weight=WEIGHT_TEXT,
-        color=GREEN_SUCCESS_TEXT,
-        style={'marginTop': 10})
-    
-    if (data_type == 'h5mu' and modality is not None) or (data_type == 'h5ad'):
-        if selected_table == 'Heatmap expression':
-            try:
-                heatmap_data = pd.read_json(heatmap)
-            except:
-                return None, failed_message
-            heatmap_data.iloc[::-1].to_csv(f'saved_tables/{filename}.csv')
-            return None, success_message
-        elif selected_table == 'Trajectory cells barcodes':
-            try:
-                tube_cells_data = pd.read_json(tube_cells)
-            except:
-                return None, failed_message
-            tube_df = tube_cells_data.loc[tube_cells_data['segment___'] > -1]
-            indices = [int(i) for i in tube_df.index]
-            final_df = pd.DataFrame({
-                'Cell': h5_file.obs.index[indices].tolist(),
-                'Segment': list(tube_df['segment___'] + 1)})
-            final_df.to_csv(f'{TABLES_DIRECTORY}/{filename}.csv')
-            return None, success_message
-    else:
-        return None, failed_general_message
-        
 
 @app.callback(
     Output('output_data_upload', 'children'),

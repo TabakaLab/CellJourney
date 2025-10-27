@@ -220,37 +220,23 @@ save_accordion = dmc.Accordion(
                     [
                         html.Div(
                             [                
-                                dmc.Text(
-                                    "All figures are stored in the 'saved_figures' directory, and tables are stored in the 'saved_tables' directory. \
-                                    Please exercise caution when naming your files, as any file with the same name as an existing one will be overwritten", 
-                                    size='xs', 
-                                    color=GRAY_NEUTRAL_TEXT
-                                ),
-                                dmc.Divider(
-                                    label='Figures',
-                                    labelPosition='center',
-                                ),
                                 dmc.Select(
-                                    label='Select figure',
+                                    label='Select results',
                                     id='save_figure',
-                                    value='Scatter plot',
+                                    value='Figure - Scatter plot',
                                     data=[
-                                        'Scatter plot', 
-                                        'Cone plot', 
-                                        'Trajectories (streamlines/streamlets)', 
-                                        'Single trajectory (Cell Journey)',
-                                        'Heatmap (Cell Journey)'
-                                    ],
+                                        'Figure - Scatter plot', 
+                                        'Figure - Cone plot',
+                                        'Figure - Trajectories (streamlines/streamlets)',
+                                        'Figure - Single trajectory (Cell Journey)',
+                                        'Figure - Heatmap (Cell Journey)',
+                                        'Table - Heatmap expression',
+                                        'Table - Trajectory cells barcodes',
+                                        ],
                                     icon=DashIconify(icon='iconoir:list-select')
                                 ),
-                                dmc.TextInput(
-                                    label='Filename',
-                                    placeholder='figure.png',
-                                    value='figure',
-                                    id='save_filename',
-                                ),
                                 dmc.Select(
-                                    label='Format',
+                                    label='Figure format',
                                     id='save_format',
                                     value='png',
                                     data=['png', 'jpg', 'webp', 'svg', 'pdf', 'html'],
@@ -265,7 +251,7 @@ save_accordion = dmc.Accordion(
                                                     value=1500, 
                                                     precision=0, 
                                                     step=100,
-                                                    label='Width',
+                                                    label='Figure width',
                                                     icon=DashIconify(icon='carbon:arrows-horizontal')
                                                 ),
                                             ],
@@ -278,7 +264,7 @@ save_accordion = dmc.Accordion(
                                                     value=1000, 
                                                     precision=0, 
                                                     step=100,
-                                                    label='Height',
+                                                    label='Figure height',
                                                     icon=DashIconify(icon='carbon:arrows-vertical')
                                                 ),
                                             ]
@@ -297,7 +283,7 @@ save_accordion = dmc.Accordion(
                                     icon=DashIconify(icon='fluent-mdl2:scale-volume')
                                 ),
                                 dmc.Space(h=10),
-                                dmc.Button('Export figure',
+                                dmc.Button('Export results',
                                     id='submit_download', 
                                     style={
                                         'width': '100%', 
@@ -305,43 +291,7 @@ save_accordion = dmc.Accordion(
                                     }
                                 ),
                                 html.Div(
-                                    id='export_figure_message', 
-                                    style={
-                                        'width': '100%', 
-                                        'textAlign': 'center'
-                                    }
-                                ),
-                                dmc.Space(h=10),
-                                dmc.Divider(
-                                    label='Tables',
-                                    labelPosition='center',
-                                ),
-                                dmc.Select(
-                                    label='Select table',
-                                    id='select_table',
-                                    value='Heatmap expression',
-                                    data=[
-                                        'Heatmap expression',
-                                        'Trajectory cells barcodes',
-                                    ],
-                                    icon=DashIconify(icon='iconoir:list-select')
-                                ),
-                                dmc.TextInput(
-                                    label='Filename',
-                                    placeholder='table.csv',
-                                    value='table',
-                                    id='save_filename_table',
-                                ),
-                                dmc.Space(h=10),
-                                dmc.Button('Export csv table',
-                                    id='submit_download_table', 
-                                    style={
-                                        'width': '100%', 
-                                        'backgroundColor': BLUE_BACKGROUND
-                                    }
-                                ),
-                                html.Div(
-                                    id='export_table_message', 
+                                    id='export_message', 
                                     style={
                                         'width': '100%', 
                                         'textAlign': 'center'
@@ -354,6 +304,7 @@ save_accordion = dmc.Accordion(
             ], 
             value='save'
         ),
+        dcc.Download(id="export_results"),  
     ], 
     variant='filled',
     value='save_closed'
