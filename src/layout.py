@@ -231,8 +231,7 @@ save_accordion = dmc.Accordion(
                                         'Figure - Single trajectory (Cell Journey)',
                                         'Figure - Heatmap (Cell Journey)',
                                         'Table - Heatmap expression',
-                                        'Table - Trajectory cells barcodes',
-                                        ],
+                                        'Table - Trajectory cells barcodes',],
                                     icon=DashIconify(icon='iconoir:list-select')
                                 ),
                                 dmc.Select(
@@ -327,7 +326,7 @@ plot_accordion = dmc.Accordion(
                 dmc.AccordionPanel(
                     [
                         html.Div(
-                            [                
+                            [   
                                 dmc.MultiSelect(
                                     id='scatter_hover_features', 
                                     placeholder='Select features',
@@ -424,6 +423,22 @@ plot_accordion = dmc.Accordion(
                                     offLabel='Hide',
                                     checked=True
                                 ),
+                                dmc.Space(h=5),
+                                dmc.Spoiler(
+                                    showLabel="How to manipulate the figures?",
+                                    hideLabel="Close",
+                                    initialState=False,
+                                    maxHeight=0,
+                                    children=[
+                                        dmc.List(
+                                            children=[
+                                                dmc.ListItem("One"),
+                                                dmc.ListItem("Two"),
+                                            ],
+                                            size='md'
+                                        )
+                                    ],
+                                )
                             ]
                         ),
                     ]
