@@ -53,7 +53,7 @@ parso==0.8.4
 patsy==0.5.6
 pexpect==4.9.0
 pillow==10.3.0
-plotly==5.18.0
+plotly==6.3
 progressbar==2.5
 prompt-toolkit==3.0.43
 protobuf==5.26.1

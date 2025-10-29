@@ -341,16 +341,38 @@ plot_accordion = dmc.Accordion(
                                     data=TEMPLATES,
                                     icon=DashIconify(icon='arcticons:xiaomi-themes')
                                 ),
-                                dmc.Select(
-                                    label='Legend orientation',
-                                    id='general_legend_orientation',
-                                    value='v',
-                                    data=[
-                                        {'value': 'h', 'label': 'Horizontal'}, 
-                                        {'value': 'v', 'label': 'Vertical'}
-                                    ],
-                                    icon=DashIconify(icon='gis:map-legend-o')
-                                ),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            [
+                                                dmc.Select(
+                                                    label='Legend orientation',
+                                                    id='general_legend_orientation',
+                                                    value='v',
+                                                    data=[
+                                                        {'value': 'h', 'label': 'Horizontal'}, 
+                                                        {'value': 'v', 'label': 'Vertical'}
+                                                    ],
+                                                    icon=DashIconify(icon='gis:map-legend-o')
+                                                ),
+                                            ],
+                                        ),
+                                        dbc.Col(
+                                            [
+                                                dmc.NumberInput(
+                                                    id='general_legend_maxheight', 
+                                                    min=1,
+                                                    max=100,
+                                                    value=30, 
+                                                    precision=0, 
+                                                    step=10,
+                                                    label='Legend max height %',
+                                                    icon=DashIconify(icon='gg:format-line-height')
+                                                ),
+                                            ]
+                                        )
+                                    ]
+                                ),      
                                 dbc.Row(
                                     [
                                         dbc.Col(
@@ -425,17 +447,20 @@ plot_accordion = dmc.Accordion(
                                 ),
                                 dmc.Space(h=5),
                                 dmc.Spoiler(
-                                    showLabel="How to manipulate the figures?",
+                                    showLabel="How to navigate the figures?",
                                     hideLabel="Close",
                                     initialState=False,
                                     maxHeight=0,
                                     children=[
                                         dmc.List(
                                             children=[
-                                                dmc.ListItem("One"),
-                                                dmc.ListItem("Two"),
+                                                dmc.ListItem("Click and drag with the left mouse button to rotate the 3D view"),
+                                                dmc.ListItem("Use the right mouse button or hold Ctrl and drag to pan the scene"),
+                                                dmc.ListItem("Use the mouse wheel to zoom in or out of the figure"),
+                                                dmc.ListItem("Click on the legend item to hide it"),
+                                                dmc.ListItem("Double-click on the legend item to isolate it"),
                                             ],
-                                            size='md'
+                                            size='xs'
                                         )
                                     ],
                                 )

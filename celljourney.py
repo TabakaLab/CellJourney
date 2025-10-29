@@ -1223,6 +1223,7 @@ def color_type_is_qualitative(scatter_feature, _):
     Input('scatter_h5ad_dropdown', 'value'),
     Input('general_theme', 'value'),
     Input('general_show_ticks', 'checked'),
+    Input('general_legend_maxheight', 'value'),
     Input('general_legend_leftright', 'value'),
     Input('general_legend_topbottom', 'value'),
     Input('general_show_legend', 'checked'),
@@ -1255,7 +1256,7 @@ def color_type_is_qualitative(scatter_feature, _):
 def plot_scatter(
     submitted, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
     scatter_color, scatter_select_color_type, scatter_feature, scatter_modality_var,
-    scatter_h5ad_var, theme, show_ticks_scatter, legend_leftright, legend_topbottom,
+    scatter_h5ad_var, theme, show_ticks_scatter, legend_maxheight, legend_leftright, legend_topbottom,
     show_legend, show_colorscale, legend_orientation, hover_data, hover_data_storage,
     colorscale_quantiles, custom_colorscale_switch, reverse_colorscale_switch, general_or_modality,
     add_volume, cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth, sd_scaler,
@@ -1328,6 +1329,7 @@ def plot_scatter(
         legend=dict(
             font=dict(size=20),
             itemsizing='constant',
+            maxheight=legend_maxheight/100,
             x=legend_leftright,
             y=legend_topbottom
         )
@@ -1668,6 +1670,7 @@ def update_trajectories_selector(_):
     Input('scatter_modality_var', 'value'),
     Input('scatter_h5ad_dropdown', 'value'),
     Input('general_show_ticks', 'checked'),
+    Input('general_legend_maxheight', 'value'),
     Input('general_legend_leftright', 'value'),
     Input('general_legend_topbottom', 'value'),
     Input('trajectories_reversed', 'checked'),
@@ -1706,7 +1709,7 @@ def plot_trajectories(
     finished_generating_trajectories, width, opacity, colorscale, theme, trajectory_type,
     add_scatterplot, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
     scatter_color, scatter_select_color_type, scatter_feature, scatter_modality_var, scatter_h5ad_var,
-    show_ticks_trajectories, legend_leftright, legend_topbottom, reversed, length_slider,
+    show_ticks_trajectories, legend_maxheight, legend_leftright, legend_topbottom, reversed, length_slider,
     show_legend_trajectories, show_colorscale, show_legend_streamlines, legend_orientation,
     streamlines_indices, streamlets_indices, hover_data, hover_data_storage, colorscale_quantiles, 
     custom_colorscale_switch, reverse_colorscale_switch, add_volume, cutoff, volume_opacity, 
@@ -1814,6 +1817,7 @@ def plot_trajectories(
         legend=dict(
             font=dict(size=20),
             itemsizing='constant',
+            maxheight=legend_maxheight/100,
             x=legend_leftright,
             y=legend_topbottom,
         )
@@ -2368,6 +2372,7 @@ def show_heatmap_popover(
     Input('trajectory_colorscale', 'value'),
     Input('trajectories_reversed', 'checked'),
     Input('general_show_ticks', 'checked'),
+    Input('general_legend_maxheight', 'value'),
     Input('general_legend_leftright', 'value'),
     Input('general_legend_topbottom', 'value'),
     Input('general_show_legend', 'checked'),
@@ -2405,7 +2410,7 @@ def cj_plot_scatter(
     grid_is_generated, trajectory_is_generated, point_size, opacity, scatter_colorscale,
     scatter_colorscale_quantitative, scatter_color, scatter_select_color_type, scatter_feature,
     scatter_modality_var, scatter_h5ad_var, theme, trajectory_width, trajectory_opacity,
-    trajectory_colorscale, reversed, show_ticks_trajectories, legend_leftright, legend_topbottom,
+    trajectory_colorscale, reversed, show_ticks_trajectories, legend_maxheight, legend_leftright, legend_topbottom,
     show_legend, show_colorscale, legend_orientation, hover_data, hover_data_storage, colorscale_quantiles,
     tube_points_indices, highlight_tube_cells, tube_cells_color, tube_cells_size, custom_colorscale_switch, 
     reverse_colorscale_switch, general_or_modality, add_volume, cutoff, volume_opacity, volume_single_color, 
@@ -2524,6 +2529,7 @@ def cj_plot_scatter(
         legend_orientation=legend_orientation,
         legend=dict(
             font=dict(size=20),
+            maxheight=legend_maxheight/100,
             itemsizing='constant',
             x=legend_leftright,
             y=legend_topbottom,
