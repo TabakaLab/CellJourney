@@ -54,6 +54,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#4-run-the-main-script">4. Run the main script</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#docker">Docker</a>
+    </li>
     </ul>
                 </li>
               </ul>
@@ -93,7 +95,7 @@
             <div class="section" itemprop="articleBody">
               
                 <h2 id="installation">Installation</h2>
-<p>In order to install Cell Journey, it is recommended to create a virtual environment in which all the required dependencies can be installed. The installation process consists of the following steps:</p>
+<p>To install Cell Journey, it is recommended to create a virtual environment in which all the required dependencies can be installed. The installation process consists of the following steps:</p>
 <ol>
 <li>Download Cell Journey.</li>
 <li>Create and activate a virtual environment.</li>
@@ -104,16 +106,16 @@
 <p>To download Cell Journey, execute the following command:</p>
 <pre><code class="language-bash">git clone https://github.com/TabakaLab/CellJourney.git
 </code></pre>
-<p>or go to <a href="https://github.com/TabakaLab/CellJourney">https://github.com/TabakaLab/CellJourney</a>, click on the <strong>&lt;&gt; Code</strong> button, and then select <strong>Download ZIP</strong>. After downloading and extracting the archive, navigate to the Cell Journey's main directory.</p>
+<p>or go to <a href="https://github.com/TabakaLab/CellJourney">https://github.com/TabakaLab/CellJourney</a>, click on the <strong>&lt;&gt; Code</strong> button, and then select <strong>Download ZIP</strong>. After downloading and extracting the archive, navigate to Cell Journey's main directory.</p>
 <h3 id="2-create-and-activate-virtual-environment">2. Create and activate virtual environment</h3>
 <p>You can create a virtual environment using <a href="https://docs.python.org/3/library/venv.html">venv</a> or <a href="https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">conda</a>. Using conda is recommended as it provides a more convenient way of configuring specific python version, in this case 3.11.7.</p>
-<p><strong>Venv</strong></p>
-<pre><code class="language-bash">python -m venv cjenv
-source cjenv/bin/activate
-</code></pre>
 <p><strong>Conda</strong></p>
 <pre><code class="language-bash">conda create --name cjenv python=3.11.7
 conda activate cjenv
+</code></pre>
+<p><strong>Venv</strong></p>
+<pre><code class="language-bash">python -m venv cjenv
+source cjenv/bin/activate
 </code></pre>
 <h3 id="3-install-dependencies">3. Install dependencies</h3>
 <p>Cell Journey is based on many libraries that are necessary for the toolkit to run correctly. These dependencies can be installed using the command</p>
@@ -121,15 +123,28 @@ conda activate cjenv
 </code></pre>
 <p>Please replace the example path <code>/path/to/celljourney/</code> with one corresponding to your system's Cell Journey location. Remember to install the dependencies after activating the virtual environment.</p>
 <h3 id="4-run-the-main-script">4. Run the main script</h3>
-<p>To run Cell Journey, you need to run the python script <code>celljourney.py</code></p>
+<p>To run the Cell Journey, you need to run the python script <code>celljourney.py</code></p>
 <pre><code class="language-bash">python /path/to/celljourney/celljourney.py
 </code></pre>
-<p>Wait for the following information to show <code>Dash is running on http://127.0.0.1:8080/</code> and then navigate to <a href="http://127.0.0.1:8080">http://127.0.0.1:8080</a>.</p>
+<p>If the software is not in the Docker container (see <a href="#docker">Docker section</a> below), the dashboard will open automatically in your browser. To suppress the automatic opening, add the <code>--suppressbrowser</code> flag to your command.</p>
+<pre><code class="language-bash">python celljourney.py --suppressbrowser
+</code></pre>
+<p>Wait for the following information to show <code>Dash is running on http://127.0.0.1:8080/</code> and then navigate to <code>http://127.0.0.1:8080</code>.</p>
 <p>Cell Journey's default port is 8080. If, for some reason, the user would like to work on a different one, run the script with an additional port parameter, such as</p>
-<pre><code class="language-bash">python celljourney.pl --port 8081
+<pre><code class="language-bash">python celljourney.py --port 8081
 </code></pre>
 <p>If the default or user-designated port is already occupied, the program will not run. If the user wants to run several Cell Journey sessions simultaneously, a different port should be designated for each session.</p>
 <p>To terminate the program, you must abort the <code>celljourney.py</code> script. This can be done in the shell where the script was run using the <code>ctrl+c</code> key combination.</p>
+<h3 id="docker">Docker</h3>
+<p>Build the Docker image from the main directory containing the Dockerfile:</p>
+<pre><code class="language-bash">docker build -t celljourney .
+</code></pre>
+<p>Run the container</p>
+<pre><code class="language-bash">docker run -p 8080:8080 celljourney
+</code></pre>
+<p>To use a custom port (e.g., 8082), pass the <code>PORT</code> environment variable and map the port accordingly:</p>
+<pre><code class="language-bash">docker run -e PORT=8082 -p 8082:8082 celljourney
+</code></pre>
               
             </div>
           </div><footer>
