@@ -109,8 +109,8 @@
 <p>To generate example data, we will use the built-in pancreas dataset from <a href="https://scvelo.readthedocs.io">scvelo</a>. The process of obtaining the velocity vector components is detailed in the scvelo tutorials. We will focus on one key difference that enables generating three-dimensional data.</p>
 <pre><code>import scanpy as sc
 import scvelo as scv
-
-adata = scv.datasets.pancreas()
+</code></pre>
+<pre><code>adata = scv.datasets.pancreas()
 adata
 </code></pre>
 <pre><code>AnnData object with n_obs × n_vars = 3696 × 27998
@@ -148,7 +148,7 @@ adata
 </code></pre>
 <pre><code>scv.tl.velocity_graph(adata)
 scv.tl.velocity(adata)
-scv.tl.velocity_embedding(adata, basis='umap')
+scv.tl.velocity_embedding(adata, basis=&quot;umap&quot;)
 adata
 </code></pre>
 <pre><code>AnnData object with n_obs × n_vars = 3696 × 2000
@@ -162,6 +162,9 @@ adata
 <p>The velocity vectors have been successfully determined and are located in <code>obsm</code> as <code>velocity_umap</code>.</p>
 <h3 id="reducing-the-file-size">Reducing the file size</h3>
 <p>Dash, which is used to create Cell Journey, has its limitations. Loading very large files can be automatically interrupted. Therefore, files for the Cell Journey analysis should be stripped of unnecessary data, especially large dense matrices. For the pancreas dataset it is sufficient to limit the data to what is contained in <code>var</code>, <code>obs</code>, <code>obsm</code>, and the sparse <code>X</code> matrix.</p>
+<pre><code>import scanpy as sc
+import os
+</code></pre>
 <pre><code>adata_slim = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var, obsm=adata.obsm)
 adata_slim.write(&quot;pancreas_slim.h5ad&quot;)
 </code></pre>
