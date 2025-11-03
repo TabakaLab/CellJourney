@@ -107,7 +107,10 @@
 </ul>
 <h3 id="generating-3d-data">Generating 3D Data</h3>
 <p>To generate example data, we will use the built-in pancreas dataset from <a href="https://scvelo.readthedocs.io">scvelo</a>. The process of obtaining the velocity vector components is detailed in the scvelo tutorials. We will focus on one key difference that enables generating three-dimensional data.</p>
-<pre><code>adata = scv.datasets.pancreas()
+<pre><code>import scanpy as sc
+import scvelo as scv
+
+adata = scv.datasets.pancreas()
 adata
 </code></pre>
 <pre><code>AnnData object with n_obs × n_vars = 3696 × 27998
@@ -160,7 +163,7 @@ adata
 <h3 id="reducing-the-file-size">Reducing the file size</h3>
 <p>Dash, which is used to create Cell Journey, has its limitations. Loading very large files can be automatically interrupted. Therefore, files for the Cell Journey analysis should be stripped of unnecessary data, especially large dense matrices. For the pancreas dataset it is sufficient to limit the data to what is contained in <code>var</code>, <code>obs</code>, <code>obsm</code>, and the sparse <code>X</code> matrix.</p>
 <pre><code>adata_slim = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var, obsm=adata.obsm)
-adata_slim.write(&quot;pancreas_slim.h5ad)
+adata_slim.write(&quot;pancreas_slim.h5ad&quot;)
 </code></pre>
 <p>For comparison, we can also save the entire adata dataset.</p>
 <pre><code>adata.write(&quot;pancreas_full.h5ad&quot;)
