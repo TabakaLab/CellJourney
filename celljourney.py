@@ -2,6 +2,7 @@ import warnings
 import re
 import os
 import io
+import time
 import base64
 import logging
 import argparse
@@ -1465,6 +1466,7 @@ def calculate_trajectories(
         total_scaled = n_grid ** 3
         counter = 0
         print(f'Generating trajectories for n_grid={n_grid}, n_steps={n_steps}, step_size={dt}, diff={diff}')
+        start_time = time.time()
         print(f'1/2 Averaging vector space consisting of {n_grid ** 3} grid cells')
         bar_grid = progressbar.ProgressBar(
             maxval=total_scaled,
@@ -1501,7 +1503,10 @@ def calculate_trajectories(
             grid['xyz'][..., 2].flatten()[nonzero] +
             np.random.normal(scale=grid['dz'], size=nonzero_sum, loc=0),
         ]
-        print(f'2/2 Calculating trajectories for {nonzero_sum} starting points')
+        end_time = time.time()
+        print(f'Finished in {round(end_time - start_time, 3)} seconds.')
+        print(f'2/2 Calculating trajectories for {nonzero_sum} starting points.')
+        start_time = time.time()
         bar_trajectories = progressbar.ProgressBar(
             maxval=nonzero_sum, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
         bar_trajectories.start()
@@ -1518,7 +1523,8 @@ def calculate_trajectories(
                 trajectories.append(trajectory)
             bar_trajectories.update(counter)
         bar_trajectories.finish()
-        print(f'Finished! Generated {len(trajectories)} trajectories in total.')
+        end_time = time.time()
+        print(f'Finished! Generated {len(trajectories)} trajectories in {round(end_time - start_time, 3)} seconds.')
         grid_trajectories = grid
         if len(trajectories) == 0:
             raise PreventUpdate
