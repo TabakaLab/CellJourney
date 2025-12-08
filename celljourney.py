@@ -1868,6 +1868,7 @@ def cell_journey_grid(submitted, n_grid, x, y, z, u, v, w):
 
     total_scaled = n_grid ** 3
     counter = 0
+    start_time = time.time()
     print(f'Averaging vector space consisting of {total_scaled} grid cells')
     bar_grid = progressbar.ProgressBar(
         maxval=total_scaled,
@@ -1884,7 +1885,8 @@ def cell_journey_grid(submitted, n_grid, x, y, z, u, v, w):
                 counter += 1
                 bar_grid.update(counter)
     bar_grid.finish()
-    print(f'Finished!')
+    end_time = time.time()
+    print(f'Finished in {round(end_time - start_time, 3)} seconds.')
     uvw = np.nan_to_num(uvw)
     grid_cj = {
         'xyz': xyz, 'uvw': uvw,
