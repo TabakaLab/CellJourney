@@ -15,6 +15,7 @@ DEFAULT_SCATTER_SIZE = 2
 DEFAULT_OPACITY = 1
 DEFAULT_LINE_WIDTH = 5
 DEFAULT_COLORSCALE = 'Blues'
+CLONE_ARRAY_NAME = 'Clones'
 NO_LOGO_DISPLAY = {
     'displaylogo': False,
     'displayModeBar': False

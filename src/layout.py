@@ -719,6 +719,37 @@ scatter_plot_accordion = dmc.Accordion(
                                 ),
                             ]
                         ),
+                        dmc.Space(h=10),
+                        dmc.Alert(
+                            [
+                                dmc.Text(
+                                    'This functionality requires an array named "Clones" to be present in the .obsm layer.', 
+                                    size='xs', 
+                                    color=GRAY_NEUTRAL_TEXT
+                                ),
+                                dmc.Space(h=5),
+                                dmc.Switch(
+                                    id='clone_switch',
+                                    label='Click on a cell to find the clones',
+                                    size='sm',
+                                    color=SWITCH_COLOR,
+                                    onLabel='ON',
+                                    offLabel='OFF',
+                                    checked=False
+                                ),
+                                dmc.NumberInput(
+                                    id='clone_radius',
+                                    min=0.0,
+                                    value=1,
+                                    precision=2,
+                                    step=1,
+                                    label='Radius (neighbourhood size)',
+                                    icon=DashIconify(icon='iconoir:radius')
+                                ),
+                            ],
+                            title='Clonal data',
+                            color='pink'
+                        ),
                     ]
                 ),
             ], 

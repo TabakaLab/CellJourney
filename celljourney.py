@@ -7,6 +7,7 @@ import base64
 import logging
 import argparse
 import tempfile
+import traceback
 import progressbar
 import numpy as np
 # https://github.com/pandas-dev/pandas/issues/54466
@@ -63,6 +64,7 @@ grid_trajectories = None
 single_trajectory = None
 feature_distribution = None
 custom_path = args.file
+clonal_df = None
 
 app = dash.Dash(
     __name__,
@@ -100,6 +102,7 @@ def parse_data(filename, filetype, content_data):
         obsm_metadata = pd.DataFrame(index=h5_file.obs_names)
         for modality in modalities:
             obsm_keys = list(h5_file[modality].obsm.keys())
+            obsm_keys = [x for x in obsm_keys if x != CLONE_ARRAY_NAME]
             for obsm_key in obsm_keys:
                 if not isinstance(h5_file[modality].obsm[obsm_key], pd.DataFrame):
                     key_shape = h5_file[modality].obsm[obsm_key].shape
@@ -130,6 +133,7 @@ def parse_data(filename, filetype, content_data):
         else:
             h5_file = sc.read_h5ad(filename)
         obsm_keys = list(h5_file.obsm.keys())
+        obsm_keys = [x for x in obsm_keys if x != CLONE_ARRAY_NAME]
         obsm_metadata = pd.DataFrame(index=h5_file.obs_names)
         for obsm_key in obsm_keys:
             if not isinstance(h5_file.obsm[obsm_key], pd.DataFrame):
@@ -250,8 +254,8 @@ def generate_volume_plot(
         y=vol_Y.flatten(),
         z=vol_Z.flatten(),
         value=grid_values,
-        isomin=grid_values.min(),
-        isomax=grid_values.max(),
+        isomin=np.nanmin(grid_values),
+        isomax=np.nanmax(grid_values),
         opacity=volume_opacity,
         opacityscale=[[0, 0], [(cutoff - 5) / 100, 0], [(cutoff + 5) / 100, 0.8], [1, 1]],
         surface_count=50,
@@ -374,7 +378,7 @@ def scatter_plot_data_generator(
                         showscale=show_colorscale,
                         reversescale=reverse_colorscale_switch,
                         opacity=DEFAULT_OPACITY if opacity is None else opacity,
-                        color='black'
+                        #color='black'
                     ),
                 )
             ]
@@ -1207,11 +1211,24 @@ def color_type_is_qualitative(scatter_feature, _):
                 return True
     else:
         return False
+    
+
+@app.callback(
+    Output('clone_switch', 'checked'),
+    Input('clone_switch', 'checked'),
+    prevent_initial_update=True
+)
+def clear_clonal_df_when_off(clone_switch):
+    if clone_switch == False:
+        global clonal_df
+        clonal_df = None
+    return clone_switch
 
 
 @app.callback(
     Output('scatter_plot', 'figure'),
     Output('feature_histogram_trigger', 'children'),
+    Input('scatter_plot', 'clickData'),
     Input('submit_selected_columns', 'n_clicks'),
     Input('scatter_size', 'value'),
     Input('scatter_opacity', 'value'),
@@ -1251,54 +1268,100 @@ def color_type_is_qualitative(scatter_feature, _):
     State('select_y', 'value'),
     State('select_z', 'value'),
     State('scatter_color_type', 'data'),
-    
+    State('clone_switch', 'checked'),
+    State('clone_radius', 'value'),
     prevent_initial_call=True
 )
 def plot_scatter(
-    submitted, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
+    selected_cell, submitted, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
     scatter_color, scatter_select_color_type, scatter_feature, scatter_modality_var,
     scatter_h5ad_var, theme, show_ticks_scatter, legend_maxheight, legend_leftright, legend_topbottom,
     show_legend, show_colorscale, legend_orientation, hover_data, hover_data_storage,
     colorscale_quantiles, custom_colorscale_switch, reverse_colorscale_switch, general_or_modality,
     add_volume, cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth, sd_scaler,
-    grid_size, radius_scaler, custom_colorscale, modality, x, y, z, feature_is_qualitative):
+    grid_size, radius_scaler, custom_colorscale, modality, x, y, z, feature_is_qualitative,
+    clone_switch, clone_radius):
     global df
     global h5_file
     global data_type
-    
+    global clonal_df
+
     if something_is_none(submitted, df, x, y, z):
         raise PreventUpdate
     elif something_is_empty_string(point_size, opacity):
         raise PreventUpdate
+    
+    clonal_var_name = None
+    temp_df = None
+    temp_var_name = None
+    feature_is_not_qualitative = False
+    if ctx.triggered_id == 'scatter_plot' and clone_switch == True and CLONE_ARRAY_NAME in list(h5_file.obsm.keys()) and clonal_df is None:
+        x_min = selected_cell['points'][0]['x'] - clone_radius
+        x_max = selected_cell['points'][0]['x'] + clone_radius
+        y_min = selected_cell['points'][0]['y'] - clone_radius
+        y_max = selected_cell['points'][0]['y'] + clone_radius
+        z_min = selected_cell['points'][0]['z'] - clone_radius
+        z_max = selected_cell['points'][0]['z'] + clone_radius
 
-    if general_or_modality == 'single_modality' and scatter_h5ad_var is not None:
-        temp_var_name = f'{scatter_h5ad_var}'
-        expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
-        expression_array = [item[0] for item in expression_array]
-        temp_pd = pd.DataFrame({temp_var_name: expression_array})
-        temp_df = pd.concat([df, temp_pd], axis=1)
+        filtered_df = df[
+            (df[x] >= x_min) & (df[x] <= x_max) &
+            (df[y] >= y_min) & (df[y] <= y_max) &
+            (df[z] >= z_min) & (df[z] <= z_max)
+        ]
+        clonal_df = pd.DataFrame(index = df.index)
+        clonal_df['Clonal data'] = "Rest"
+        clonal_var_name = 'Clonal data'
+        mat_csr = h5_file.obsm[CLONE_ARRAY_NAME].tocsr()
+        clones_cumulated = []
+        for cell in filtered_df.index:
+            clones = mat_csr.getrow(cell).indices
+            if len(clones) > 0:
+                same_cells = np.argwhere(mat_csr.indices == clones[0])
+                clones_cumulated.append(same_cells)
+        clones_cumulated = np.concatenate(clones_cumulated).ravel()
+        clones_cumulated = np.unique(clones_cumulated)
+        clonal_df['Clonal data'].iloc[clones_cumulated] = "Clones"
+        clonal_df['Clonal data'].iloc[filtered_df.index] = "Selected cells"
+
+    if (general_or_modality == 'single_modality' and scatter_h5ad_var is not None) or (clonal_df is not None):
+        if clonal_var_name is None:
+            temp_var_name = f'{scatter_h5ad_var}'
+            expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
+            expression_array = [item[0] for item in expression_array]
+            temp_pd = pd.DataFrame({temp_var_name: expression_array})
+            temp_df = pd.concat([df, temp_pd], axis=1)
+        else:
+            temp_var_name = clonal_var_name
+            temp_df = pd.concat([df, clonal_df], axis=1)
+            feature_is_not_qualitative = True
+
         try:
             fig_data, volume_data = scatter_plot_data_generator(
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
-                custom_colorscale, x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity,
+                custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity,
                 volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
         except:
             raise PreventUpdate
-    elif general_or_modality == 'modality' and scatter_modality_var is not None:
-        temp_var_name = f'{modality}: {scatter_modality_var}'
-        expression_array = h5_file[modality][:,
-                                             scatter_modality_var].X.toarray().tolist()
-        expression_array = [item[0] for item in expression_array]
-        temp_pd = pd.DataFrame({temp_var_name: expression_array})
-        temp_df = pd.concat([df, temp_pd], axis=1)
+    elif (general_or_modality == 'modality' and scatter_modality_var is not None) or (clonal_df is not None):
+        if clonal_var_name is None:
+            temp_var_name = f'{modality}: {scatter_modality_var}'
+            expression_array = h5_file[modality][:,scatter_modality_var].X.toarray().tolist()
+            expression_array = [item[0] for item in expression_array]
+            temp_pd = pd.DataFrame({temp_var_name: expression_array})
+            temp_df = pd.concat([df, temp_pd], axis=1)
+        else:
+            temp_var_name = clonal_var_name
+            temp_df = pd.concat([df, clonal_df], axis=1)
+            feature_is_not_qualitative = True
+
         try:
             fig_data, volume_data = scatter_plot_data_generator(
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
-                custom_colorscale, x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, 
+                custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity, 
                 volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
         except:
             raise PreventUpdate
