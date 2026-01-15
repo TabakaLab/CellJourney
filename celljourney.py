@@ -233,29 +233,31 @@ def generate_volume_plot(
     grid_points = np.column_stack((vol_X.ravel(), vol_Y.ravel(), vol_Z.ravel()))
     tree = cKDTree(df[[x, y, z]].values)
     indices = tree.query_ball_point(grid_points, r=r_max * radius)    
+    
     mask = np.zeros(len(grid_points), dtype=bool)
     for i, near_inds in enumerate(indices):
         if near_inds:
             mask[i] = True
 
     mask = mask.reshape(vol_X.shape)
-    grid_values[~mask] = np.nan
+
+    grid_values[~mask] = np.nan 
 
     grid_values_filled = np.copy(grid_values)
     nan_mask = np.isnan(grid_values)
     grid_values_filled[nan_mask] = 0
+    
     grid_values = gaussian_filter(grid_values_filled, 
-                                  sigma=(sd_scaler * dx, sd_scaler * dy, sd_scaler * dz))
-    grid_values[nan_mask] = np.nan
-    grid_values = grid_values.flatten()
+                                  sigma=(sd_scaler * dx, sd_scaler * dy, sd_scaler * dz))   
+    grid_values = np.nan_to_num(grid_values, nan=0.0)
 
     volume_plot_data = go.Volume(
         x=vol_X.flatten(),
         y=vol_Y.flatten(),
         z=vol_Z.flatten(),
-        value=grid_values,
-        isomin=np.nanmin(grid_values),
-        isomax=np.nanmax(grid_values),
+        value=grid_values.flatten(),
+        isomin=np.min(grid_values),
+        isomax=np.max(grid_values),
         opacity=volume_opacity,
         opacityscale=[[0, 0], [(cutoff - 5) / 100, 0], [(cutoff + 5) / 100, 0.8], [1, 1]],
         surface_count=50,
@@ -2190,7 +2192,6 @@ def show_additional_plots(
         if method == 'absolute':
             heatmap_data['max_segment'] = heatmap_data.iloc[:, :-1].idxmax(axis=1).map(int)
             segment_means = heatmap_data.groupby('cluster')['max_segment'].mean()
-            
             heatmap_data['mean_max_segment'] = heatmap_data['cluster'].map(segment_means)
             heatmap_data = heatmap_data.sort_values(by='mean_max_segment', ascending=False)
             heatmap_data = heatmap_data.iloc[:,:-2]
@@ -2268,15 +2269,24 @@ def show_additional_plots(
             )
             current_position += size
 
+        clean_axis = dict(
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            showline=False,
+            ticks='',
+            mirror=False
+        )
+
         heatmap.update_layout(
             template='simple_white',
             dragmode=False,
-            xaxis=dict(showticklabels=False, visible=False, showgrid=False),
-            yaxis=dict(showticklabels=False, visible=False, showgrid=False),
-            xaxis2=dict(showticklabels=False, visible=False, showgrid=False),
-            yaxis2=dict(showticklabels=False, visible=False, showgrid=False),
-            xaxis3=dict(showticklabels=False, visible=False, showgrid=False),
-            yaxis3=dict(showticklabels=False, visible=False, showgrid=False),
+            xaxis=clean_axis,
+            yaxis=clean_axis,
+            xaxis2=clean_axis,
+            yaxis2=clean_axis,
+            xaxis3=clean_axis,
+            yaxis3=clean_axis,
             margin=ZERO_MARGIN_PLOT
         )
         barplot = go.Figure(
@@ -2622,4 +2632,4 @@ def cj_plot_scatter(
 if __name__ == '__main__':
     if not args.suppressbrowser:
         Timer(1, open_browser).start()
-    app.run_server(debug=args.debug, port=args.port)
+    app.run(debug=args.debug, port=args.port)
