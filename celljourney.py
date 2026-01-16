@@ -51,7 +51,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 np.seterr(divide='ignore', invalid='ignore')
 
-
 df = None
 chunks = None
 grid_cj = None
@@ -78,8 +77,10 @@ app.title = 'Cell Journey'
 app.layout = layout
 app.server.config['MAX_CONTENT_LENGTH'] = 1073741824 * args.maxfilesize
 
+
 def open_browser():
 	webbrowser.open_new(f"http://localhost:{args.port}")
+
 
 def parse_data(filename, filetype, content_data):
     global modalities
@@ -209,7 +210,8 @@ def clear_memory():
     single_trajectory = None
     data_type = None
     df = None
-    
+
+  
 def generate_volume_plot(
         df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch, 
         cutoff, volume_opacity, kernel, kernel_smooth, sd_scaler, grid_size, radius):
@@ -260,7 +262,7 @@ def generate_volume_plot(
         isomax=np.max(grid_values),
         opacity=volume_opacity,
         opacityscale=[[0, 0], [(cutoff - 5) / 100, 0], [(cutoff + 5) / 100, 0.8], [1, 1]],
-        surface_count=50,
+        surface_count=30,
         colorscale=scatter_colorscale_quantitative,
         reversescale=reverse_colorscale_switch,
         showscale=False,
@@ -268,11 +270,12 @@ def generate_volume_plot(
     )
     return volume_plot_data
 
+
 def scatter_plot_data_generator(
         df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative, 
         scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, 
         hover_data, hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch,
-        custom_colorscale,  x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume,
+        custom_colorscale, x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume,
         cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size,
         radius):
     global feature_distribution
@@ -617,7 +620,7 @@ def export_results(_, scatter_plot, cone_plot, trajectories_plot, single_traject
                             heatmap_data = pd.read_json(heatmap)
                         except:
                             raise PreventUpdate
-                        return dcc.send_data_frame(heatmap_data.iloc[::-1].to_csv, selected_data+".csv", index=False)
+                        return dcc.send_data_frame(heatmap_data.iloc[::-1].to_csv, selected_data + ".csv", index=False)
                     elif selected_data == 'Table - Trajectory cells barcodes':
                         try:
                             tube_cells_data = pd.read_json(tube_cells)
@@ -629,8 +632,7 @@ def export_results(_, scatter_plot, cone_plot, trajectories_plot, single_traject
                         except:
                             raise PreventUpdate
 
-                        return dcc.send_data_frame(final_df.to_csv, selected_data+".csv", index=False)
-
+                        return dcc.send_data_frame(final_df.to_csv, selected_data + ".csv", index=False)
                 else:
                     raise PreventUpdate
         except:
@@ -1283,88 +1285,85 @@ def plot_scatter(
     add_volume, cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth, sd_scaler,
     grid_size, radius_scaler, custom_colorscale, modality, x, y, z, feature_is_qualitative,
     clone_switch, clone_radius):
-    global df
-    global h5_file
-    global data_type
-    global clonal_df
+    global df, h5_file, data_type, clonal_df
 
-    if something_is_none(submitted, df, x, y, z):
-        raise PreventUpdate
-    elif something_is_empty_string(point_size, opacity):
+    if something_is_none(submitted, df, x, y, z) or something_is_empty_string(point_size, opacity):
         raise PreventUpdate
     
     clonal_var_name = None
     temp_df = None
     temp_var_name = None
     feature_is_not_qualitative = False
-    if ctx.triggered_id == 'scatter_plot' and clone_switch == True and CLONE_ARRAY_NAME in list(h5_file.obsm.keys()) and clonal_df is None:
-        x_min = selected_cell['points'][0]['x'] - clone_radius
-        x_max = selected_cell['points'][0]['x'] + clone_radius
-        y_min = selected_cell['points'][0]['y'] - clone_radius
-        y_max = selected_cell['points'][0]['y'] + clone_radius
-        z_min = selected_cell['points'][0]['z'] - clone_radius
-        z_max = selected_cell['points'][0]['z'] + clone_radius
+    # CLONAL DATA
+    if clone_switch == True and CLONE_ARRAY_NAME in list(h5_file.obsm.keys()):
+        if ctx.triggered_id == 'scatter_plot' or ctx.triggered_id == 'clone_radius':
+            x_min = selected_cell['points'][0]['x'] - clone_radius
+            x_max = selected_cell['points'][0]['x'] + clone_radius
+            y_min = selected_cell['points'][0]['y'] - clone_radius
+            y_max = selected_cell['points'][0]['y'] + clone_radius
+            z_min = selected_cell['points'][0]['z'] - clone_radius
+            z_max = selected_cell['points'][0]['z'] + clone_radius
 
-        filtered_df = df[
-            (df[x] >= x_min) & (df[x] <= x_max) &
-            (df[y] >= y_min) & (df[y] <= y_max) &
-            (df[z] >= z_min) & (df[z] <= z_max)
-        ]
-        clonal_df = pd.DataFrame(index = df.index)
-        clonal_df['Clonal data'] = "Rest"
-        clonal_var_name = 'Clonal data'
-        mat_csr = h5_file.obsm[CLONE_ARRAY_NAME].tocsr()
-        clones_cumulated = []
-        for cell in filtered_df.index:
-            clones = mat_csr.getrow(cell).indices
-            if len(clones) > 0:
-                same_cells = np.argwhere(mat_csr.indices == clones[0])
-                clones_cumulated.append(same_cells)
-        clones_cumulated = np.concatenate(clones_cumulated).ravel()
-        clones_cumulated = np.unique(clones_cumulated)
-        clonal_df['Clonal data'].iloc[clones_cumulated] = "Clones"
-        clonal_df['Clonal data'].iloc[filtered_df.index] = "Selected cells"
-
-    if (general_or_modality == 'single_modality' and scatter_h5ad_var is not None) or (clonal_df is not None):
-        if clonal_var_name is None:
-            temp_var_name = f'{scatter_h5ad_var}'
-            expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
-            expression_array = [item[0] for item in expression_array]
-            temp_pd = pd.DataFrame({temp_var_name: expression_array})
-            temp_df = pd.concat([df, temp_pd], axis=1)
-        else:
-            temp_var_name = clonal_var_name
-            temp_df = pd.concat([df, clonal_df], axis=1)
-            feature_is_not_qualitative = True
-
+            filtered_df = df[
+                (df[x] >= x_min) & (df[x] <= x_max) &
+                (df[y] >= y_min) & (df[y] <= y_max) &
+                (df[z] >= z_min) & (df[z] <= z_max)
+            ]
+            clonal_df = pd.DataFrame(index = df.index)
+            clonal_df['Clonal data'] = "Rest"
+            mat_csr = h5_file.obsm[CLONE_ARRAY_NAME].tocsr()
+            clones_cumulated = []
+            for cell in filtered_df.index:
+                clones = mat_csr.getrow(cell).indices
+                if len(clones) > 0:
+                    same_cells = np.argwhere(mat_csr.indices == clones[0])
+                    clones_cumulated.append(same_cells)
+            clones_cumulated = np.concatenate(clones_cumulated).ravel()
+            clones_cumulated = np.unique(clones_cumulated)
+            clonal_df['Clonal data'].iloc[clones_cumulated] = "Clones"
+            clonal_df['Clonal data'].iloc[filtered_df.index] = "Selected cells"
+            clonal_df = pd.concat([df, clonal_df], axis=1)
         try:
             fig_data, volume_data = scatter_plot_data_generator(
-                temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
+                clonal_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                scatter_color, scatter_select_color_type, 'Clonal data', show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
-                custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity,
-                volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+                custom_colorscale, x, y, z, True, colorscale_quantiles, 
+                add_volume, cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth,
+                sd_scaler, grid_size, radius_scaler)
         except:
             raise PreventUpdate
-    elif (general_or_modality == 'modality' and scatter_modality_var is not None) or (clonal_df is not None):
-        if clonal_var_name is None:
-            temp_var_name = f'{modality}: {scatter_modality_var}'
-            expression_array = h5_file[modality][:,scatter_modality_var].X.toarray().tolist()
-            expression_array = [item[0] for item in expression_array]
-            temp_pd = pd.DataFrame({temp_var_name: expression_array})
-            temp_df = pd.concat([df, temp_pd], axis=1)
-        else:
-            temp_var_name = clonal_var_name
-            temp_df = pd.concat([df, clonal_df], axis=1)
-            feature_is_not_qualitative = True
 
+    elif general_or_modality == 'single_modality' and scatter_h5ad_var is not None:
+        temp_var_name = f'{scatter_h5ad_var}'
+        expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
+        expression_array = [item[0] for item in expression_array]
+        temp_pd = pd.DataFrame({temp_var_name: expression_array})
+        temp_df = pd.concat([df, temp_pd], axis=1)
         try:
             fig_data, volume_data = scatter_plot_data_generator(
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
-                custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity, 
-                volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+                custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles,
+                add_volume, cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth,
+                sd_scaler, grid_size, radius_scaler)
+        except:
+            raise PreventUpdate
+    elif general_or_modality == 'modality' and scatter_modality_var is not None:
+        temp_var_name = f'{modality}: {scatter_modality_var}'
+        expression_array = h5_file[modality][:,scatter_modality_var].X.toarray().tolist()
+        expression_array = [item[0] for item in expression_array]
+        temp_pd = pd.DataFrame({temp_var_name: expression_array})
+        temp_df = pd.concat([df, temp_pd], axis=1)
+        try:
+            fig_data, volume_data = scatter_plot_data_generator(
+                temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
+                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
+                custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles,
+                add_volume, cutoff, volume_opacity,  volume_single_color, kernel, kernel_smooth,
+                sd_scaler, grid_size, radius_scaler)
         except:
             raise PreventUpdate
     else:
@@ -1434,43 +1433,42 @@ def plot_scatter(
 def plot_cone(submitted, cone_size, opacity, colorscale, theme, show_ticks_cone, reversed,
               hover_data, hover_data_storage, show_colorscale, x, y, z, u, v, w):
     global df
-    if any([element is None for element in [submitted, df, x, y, z, u, v, w]]):
+
+    if something_is_none(submitted, df, x, y, z, u, v, w) or something_is_empty_string(cone_size, opacity):
         raise PreventUpdate
-    elif any([element == '' for element in [cone_size, opacity]]):
-        raise PreventUpdate
-    else:
-        fig_data = go.Cone(
-            x=df[x],
-            y=df[y],
-            z=df[z],
-            u=df[u],
-            v=df[v],
-            w=df[w],
-            sizemode='scaled',
-            sizeref=cone_size,
-            colorscale=colorscale,
-            showscale=show_colorscale,
-            reversescale=reversed,
-            text=hover_data_storage['single'] if hover_data != [] else None,
-            hovertemplate='%{text}' if hover_data != [] else None,
-            opacity=1 if opacity is None else opacity
-        )
-        fig = go.FigureWidget(data=fig_data)
-        fig.layout.uirevision = True
+    
+    fig_data = go.Cone(
+        x=df[x],
+        y=df[y],
+        z=df[z],
+        u=df[u],
+        v=df[v],
+        w=df[w],
+        sizemode='scaled',
+        sizeref=cone_size,
+        colorscale=colorscale,
+        showscale=show_colorscale,
+        reversescale=reversed,
+        text=hover_data_storage['single'] if hover_data != [] else None,
+        hovertemplate='%{text}' if hover_data != [] else None,
+        opacity=1 if opacity is None else opacity
+    )
+    fig = go.FigureWidget(data=fig_data)
+    fig.layout.uirevision = True
+    fig.update_layout(
+        hovermode=False if hover_data == [] else 'closest',
+        margin=ZERO_MARGIN_PLOT,
+        template=DEFAULT_TEMPLATE if theme is None else theme
+    )
+    if not show_ticks_cone:
         fig.update_layout(
-            hovermode=False if hover_data == [] else 'closest',
-            margin=ZERO_MARGIN_PLOT,
-            template=DEFAULT_TEMPLATE if theme is None else theme
-        )
-        if not show_ticks_cone:
-            fig.update_layout(
-                scene=dict(
-                    xaxis=ZEN_MODE,
-                    yaxis=ZEN_MODE,
-                    zaxis=ZEN_MODE
-                )
+            scene=dict(
+                xaxis=ZEN_MODE,
+                yaxis=ZEN_MODE,
+                zaxis=ZEN_MODE
             )
-        return fig
+        )
+    return fig
 
 
 @app.callback(
@@ -1503,13 +1501,9 @@ def plot_cone(submitted, cone_size, opacity, colorscale, theme, show_ticks_cone,
 def calculate_trajectories(
     submitted, updated, subset, reset, n_grid, n_steps, dt, diff, x, y, z, u, v, w, chunk_size,
     scale, method, proportion, streamtype, streamlines_indices, streamlets_indices):
-    global df
-    global grid_trajectories
-    global trajectories
-    global chunks
-    if something_is_none(df, x, y, z, u, v, w):
-        raise PreventUpdate
-    elif something_is_empty_string(n_grid, n_steps, dt, diff, chunk_size, scale):
+    global df, grid_trajectories, trajectories, chunks
+    
+    if something_is_none(df, x, y, z, u, v, w) or something_is_empty_string(n_grid, n_steps, dt, diff, chunk_size, scale):
         raise PreventUpdate
 
     button_id = ctx.triggered_id
@@ -1638,8 +1632,7 @@ def calculate_trajectories(
     prevent_initial_call=True
 )
 def trajectories_histogram(_, stream_type, streamlines_indices, streamlets_indices):
-    global trajectories
-    global chunks
+    global trajectories, chunks
 
     if something_is_none(stream_type, trajectories, chunks):
         raise PreventUpdate
@@ -1677,8 +1670,7 @@ def trajectories_histogram(_, stream_type, streamlines_indices, streamlets_indic
     prevent_initial_call=True
 )
 def trajectories_length_slider(_, stream_type, streamlines_indices, streamlets_indices):
-    global trajectories
-    global chunks
+    global trajectories, chunks
 
     if something_is_none(stream_type, trajectories, chunks, streamlines_indices, streamlets_indices):
         raise PreventUpdate
@@ -1786,12 +1778,7 @@ def plot_trajectories(
     custom_colorscale_switch, reverse_colorscale_switch, add_volume, cutoff, volume_opacity, 
     volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler, general_or_modality, 
     custom_colorscale, chunk_size, modality, x, y, z, feature_is_qualitative):
-    global df
-    global trajectories
-    global grid_trajectories
-    global chunks
-    global h5_file
-    global data_type
+    global df, trajectories, grid_trajectories, chunks, h5_file, data_type
     
     if something_is_none(df, trajectory_type, trajectories, grid_trajectories):
         raise PreventUpdate
@@ -1996,13 +1983,7 @@ def generate_single_cell_trajectory(
     selected_cell, k, n_genes, tube_segments, heatmap_method, tube_radius, n_steps, dt, diff, 
     scale, method, starting_velocity, selected_trajectory, selected_modality, heatmap_group,
     custom_features, block_new_trajectory, x, y, z, u, v, w):
-    global grid_cj
-    global df
-    global h5_file
-    global single_trajectory
-    global data_type
-    global trajectories
-    global trajectories
+    global grid_cj, df, h5_file, single_trajectory, data_type, trajectories
 
     if something_is_none(grid_cj, selected_cell):
         raise PreventUpdate
@@ -2241,6 +2222,7 @@ def show_additional_plots(
                 colorscale='Rainbow',
                 showscale=False,
                 hovertemplate='Cluster: %{z:.0f}<extra></extra>',
+                y=heatmap_data.index
             )
         heatmap = make_subplots(
             rows=1,
@@ -2259,7 +2241,7 @@ def show_additional_plots(
             heatmap.add_annotation(
                 x=-1,
                 y=total_size - cluster_center - 0.5,
-                text=str(i+1),
+                text=str(i + 1),
                 showarrow=False,
                 font=dict(color='black'),
                 xref='x2',
@@ -2322,9 +2304,7 @@ def show_additional_plots(
 )
 def show_heatmap_popover(
     selected_cell, open_state, tube_cells, modality, remove_zeros, trend_type, plottype):
-    global h5_file
-    global single_trajectory
-    global data_type
+    global h5_file, single_trajectory, data_type
     
     if not (data_type == 'h5ad' or data_type == 'h5mu'):
         raise PreventUpdate
@@ -2497,9 +2477,7 @@ def cj_plot_scatter(
     reverse_colorscale_switch, general_or_modality, add_volume, cutoff, volume_opacity, volume_single_color, 
     kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler, custom_colorscale, modality, x, y, z, 
     feature_is_qualitative, cells_and_segments):
-    global single_trajectory
-    global grid_cj
-    global df
+    global single_trajectory, grid_cj, df
 
     if something_is_none(df, x, y, z, grid_cj) or not grid_is_generated:
         raise PreventUpdate
@@ -2598,9 +2576,6 @@ def cj_plot_scatter(
         ]
 
     fig = go.FigureWidget(data=fig_data)
-
-
-
     fig.layout.uirevision = True
     fig.update_layout(
         margin=ZERO_MARGIN_PLOT,

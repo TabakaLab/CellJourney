@@ -603,6 +603,7 @@ scatter_plot_accordion = dmc.Accordion(
                                     id='scatter_colorscale_quantiles', 
                                     min=0, 
                                     max=1,
+                                    value=[0,1],
                                     marks={0: '0', 0.25: '¼', 0.5: 'Mid-range', 0.75: '¾', 1: '1'},
                                     allowCross=False,
                                 ),
@@ -676,7 +677,7 @@ scatter_plot_accordion = dmc.Accordion(
                                             id='scatter_volume_kernel',
                                             label='Radial basis function',
                                             data=['gaussian', 'inverse', 'linear', 'cubic', 'multiquadratic', 'thin_plate'],
-                                            value='inverse',
+                                            value='linear',
                                             icon=DashIconify(icon='fluent:bezier-curve-square-20-regular')
                                         ),
                                         dmc.NumberInput(
@@ -690,7 +691,7 @@ scatter_plot_accordion = dmc.Accordion(
                                         dmc.NumberInput(
                                             id='scatter_volume_gaussian_sd_scaler',
                                             min=0,
-                                            value=5,
+                                            value=2,
                                             precision=2,
                                             step=1,
                                             label='Gaussian filter standard deviation multipler',
@@ -739,10 +740,10 @@ scatter_plot_accordion = dmc.Accordion(
                                 ),
                                 dmc.NumberInput(
                                     id='clone_radius',
-                                    min=0.0,
+                                    min=0.01,
                                     value=1,
                                     precision=2,
-                                    step=1,
+                                    step=0.2,
                                     label='Radius (neighbourhood size)',
                                     icon=DashIconify(icon='iconoir:radius')
                                 ),
@@ -1536,8 +1537,8 @@ cell_journey_panel = html.Div(
                     dcc.Graph(
                         id='cj_x_plot', 
                         style={
-                            'width': '95%', 
-                            'height': '77vh',
+                            'width': '94%', 
+                            'height': '80vh',
                         },
                         config=NO_LOGO_DISPLAY
                     ),
@@ -1545,8 +1546,8 @@ cell_journey_panel = html.Div(
                     dcc.Graph(
                         id='cj_y_plot', 
                         style={
-                            'width': '95%',
-                            'height': '15vh',
+                            'width': '94%',
+                            'height': '10vh',
                         },
                         config=NO_LOGO_DISPLAY
                     ),
@@ -1728,7 +1729,7 @@ layout = html.Div(
         html.Div(id='save_table_callback'),
         html.Div(id='placeholder_streamlets'),
         html.Div(id='feature_histogram_trigger'),
-        
+
         dcc.Store(id='streamlines_indices'),
         dcc.Store(id='streamlets_indices'),
         dcc.Store(id='heatmap_data'),
