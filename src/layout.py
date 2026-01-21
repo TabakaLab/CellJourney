@@ -975,7 +975,7 @@ trajectories_accordion = dmc.Accordion(
                                 dmc.RangeSlider(
                                     id='trajectories_length_slider',
                                     style={'display': 'none'},
-                                    minRange=1,
+                                    #minRange=1,
                                     color=SLIDER_COLOR,
                                     size='xs',
                                 ),
