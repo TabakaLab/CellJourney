@@ -64,6 +64,7 @@ single_trajectory = None
 feature_distribution = None
 custom_path = args.file
 clonal_df = None
+full_clonal_df = None
 
 app = dash.Dash(
     __name__,
@@ -86,6 +87,7 @@ def parse_data(filename, filetype, content_data):
     global modalities
     global h5_file
     global custom_path
+    global full_clonal_df
     if custom_path is None:
         decoded = base64.b64decode(content_data)
 
@@ -127,6 +129,8 @@ def parse_data(filename, filetype, content_data):
                         [obsm_metadata, h5_file[modality].obsm[obsm_key]], axis=1)
             df = pd.concat([h5_file[modality].obs, obsm_metadata], axis=1)
             df = pd.concat([h5_file.obs, df], axis=1)
+            if CLONE_ARRAY_NAME in obsm_keys:
+                full_clonal_df = pd.DataFrame(h5_file[modality].obsm[CLONE_ARRAY_NAME].toarray())
     elif filetype == 'h5ad':
         if custom_path is None:
             buffer = io.BytesIO(decoded)
@@ -157,6 +161,8 @@ def parse_data(filename, filetype, content_data):
             else:
                 obsm_metadata = pd.concat([obsm_metadata, h5_file.obsm[obsm_key]], axis=1)
         df = pd.concat([h5_file.obs, obsm_metadata], axis=1)
+        if CLONE_ARRAY_NAME in list(h5_file.obsm.keys()):
+            full_clonal_df = h5_file.obsm[CLONE_ARRAY_NAME].tocsr()
     elif filetype == 'csv':
         if custom_path is None:
             buffer = io.StringIO(decoded.decode('utf-8'))
@@ -1285,7 +1291,7 @@ def plot_scatter(
     add_volume, cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth, sd_scaler,
     grid_size, radius_scaler, custom_colorscale, modality, x, y, z, feature_is_qualitative,
     clone_switch, clone_radius):
-    global df, h5_file, data_type, clonal_df
+    global df, h5_file, data_type, clonal_df, full_clonal_df
 
     if something_is_none(submitted, df, x, y, z) or something_is_empty_string(point_size, opacity):
         raise PreventUpdate
@@ -1309,19 +1315,21 @@ def plot_scatter(
                 (df[y] >= y_min) & (df[y] <= y_max) &
                 (df[z] >= z_min) & (df[z] <= z_max)
             ]
+
             clonal_df = pd.DataFrame(index = df.index)
-            clonal_df['Clonal data'] = "Rest"
-            mat_csr = h5_file.obsm[CLONE_ARRAY_NAME].tocsr()
+            clonal_df['Clonal data'] = "Rest" if not add_volume else 0
             clones_cumulated = []
-            for cell in filtered_df.index:
-                clones = mat_csr.getrow(cell).indices
-                if len(clones) > 0:
-                    same_cells = np.argwhere(mat_csr.indices == clones[0])
-                    clones_cumulated.append(same_cells)
+            cells_numeric = df.index.get_indexer(filtered_df.index)
+            for cell in cells_numeric:
+                clone_number = full_clonal_df.getrow(cell)
+                if len(clone_number.indices) > 0:
+                    clone_number = clone_number.indices[0]
+                    clones_cumulated.append((full_clonal_df[:,clone_number] == 1).nonzero()[0])
+
             clones_cumulated = np.concatenate(clones_cumulated).ravel()
             clones_cumulated = np.unique(clones_cumulated)
-            clonal_df['Clonal data'].iloc[clones_cumulated] = "Clones"
-            clonal_df['Clonal data'].iloc[filtered_df.index] = "Selected cells"
+            clonal_df['Clonal data'].iloc[clones_cumulated] = "Clones" if not add_volume else 0
+            clonal_df['Clonal data'].iloc[filtered_df.index] = "Selected cells" if not add_volume else 1
             clonal_df = pd.concat([df, clonal_df], axis=1)
         try:
             fig_data, volume_data = scatter_plot_data_generator(
