@@ -26,7 +26,7 @@ from dash import html, dcc, callback, Input, Output, State, ctx
 from coloraide import Color
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
-from scipy.interpolate import interpn, interp1d, griddata, Rbf
+from scipy.interpolate import interpn, interp1d, griddata, Rbf, RBFInterpolator
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree, cKDTree
 from sklearn.cluster import KMeans
@@ -221,61 +221,66 @@ def clear_memory():
 def generate_volume_plot(
         df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch, 
         cutoff, volume_opacity, kernel, kernel_smooth, sd_scaler, grid_size, radius):
-    dx = (df[x].max() - df[x].min()) / grid_size
-    dy = (df[y].max() - df[y].min()) / grid_size
-    dz = (df[z].max() - df[z].min()) / grid_size
+
+    x_min, x_max = df[x].min(), df[x].max()
+    y_min, y_max = df[y].min(), df[y].max()
+    z_min, z_max = df[z].min(), df[z].max()
+    
+    dx = (x_max - x_min) / grid_size
+    dy = (y_max - y_min) / grid_size
+    dz = (z_max - z_min) / grid_size
     shift = 3
-    xi = np.linspace(df[x].min() - shift * dx, df[x].max() + shift * dx, grid_size)
-    yi = np.linspace(df[y].min() - shift * dy, df[y].max() + shift * dy, grid_size)
-    zi = np.linspace(df[z].min() - shift * dz, df[z].max() + shift * dz, grid_size)
+    
+    xi = np.linspace(x_min - shift * dx, x_max + shift * dx, grid_size)
+    yi = np.linspace(y_min - shift * dy, y_max + shift * dy, grid_size)
+    zi = np.linspace(z_min - shift * dz, z_max + shift * dz, grid_size)
 
     vol_X, vol_Y, vol_Z = np.meshgrid(xi, yi, zi, indexing='ij')
-    rbf = Rbf(df[x], df[y], df[z], df[scatter_feature], function=kernel, smooth=kernel_smooth)
-    grid_values = rbf(vol_X, vol_Y, vol_Z)
-
-    r_x = (df[x].max() - df[x].min())
-    r_y = (df[y].max() - df[y].min())
-    r_z = (df[z].max() - df[z].min())
-    r_max = (r_x + r_y + r_z) / (3 * grid_size)
-
     grid_points = np.column_stack((vol_X.ravel(), vol_Y.ravel(), vol_Z.ravel()))
+
     tree = cKDTree(df[[x, y, z]].values)
-    indices = tree.query_ball_point(grid_points, r=r_max * radius)    
+    r_max = (dx + dy + dz) / 3
     
-    mask = np.zeros(len(grid_points), dtype=bool)
-    for i, near_inds in enumerate(indices):
-        if near_inds:
-            mask[i] = True
-
-    mask = mask.reshape(vol_X.shape)
-
-    grid_values[~mask] = np.nan 
-
-    grid_values_filled = np.copy(grid_values)
-    nan_mask = np.isnan(grid_values)
-    grid_values_filled[nan_mask] = 0
+    indices = tree.query_ball_point(grid_points, r=r_max * radius, workers=-1)
+    mask = np.array([len(i) > 0 for i in indices])
+    grid_values_flat = np.zeros(len(grid_points), dtype=np.float32)
     
-    grid_values = gaussian_filter(grid_values_filled, 
-                                  sigma=(sd_scaler * dx, sd_scaler * dy, sd_scaler * dz))   
+    if np.any(mask):
+        rbf = RBFInterpolator(
+            df[[x, y, z]].values, 
+            df[scatter_feature].values,
+            kernel=kernel,
+            epsilon=kernel_smooth,
+            neighbors=50 
+        )
+        grid_values_flat[mask] = rbf(grid_points[mask]).astype(np.float32)
+
+    grid_values = grid_values_flat.reshape(vol_X.shape)
     grid_values = np.nan_to_num(grid_values, nan=0.0)
+    grid_values = gaussian_filter(grid_values, sigma=(sd_scaler, sd_scaler, sd_scaler))
 
     volume_plot_data = go.Volume(
-        x=vol_X.flatten(),
-        y=vol_Y.flatten(),
-        z=vol_Z.flatten(),
-        value=grid_values.flatten(),
-        isomin=np.min(grid_values),
-        isomax=np.max(grid_values),
+        x=vol_X.ravel().astype(np.float32),
+        y=vol_Y.ravel().astype(np.float32),
+        z=vol_Z.ravel().astype(np.float32),
+        value=grid_values.ravel(),
+        isomin=float(np.min(grid_values)),
+        isomax=float(np.max(grid_values)),
         opacity=volume_opacity,
-        opacityscale=[[0, 0], [(cutoff - 5) / 100, 0], [(cutoff + 5) / 100, 0.8], [1, 1]],
-        surface_count=30,
+        opacityscale=[
+            [0, 0], 
+            [max(0, (cutoff - 5) / 100), 0], 
+            [min(1, (cutoff + 5) / 100), 0.8], 
+            [1, 1]
+        ],
+        surface_count=25,
         colorscale=scatter_colorscale_quantitative,
         reversescale=reverse_colorscale_switch,
         showscale=False,
         hoverinfo='skip'
     )
+    
     return volume_plot_data
-
 
 def scatter_plot_data_generator(
         df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative, 
@@ -355,9 +360,11 @@ def scatter_plot_data_generator(
                     mode='markers',
                     text=hover_data_storage['single'] if hover_data != [] else None,
                     hovertemplate='%{text}' if hover_data != [] else None,
-                    marker_color=df[scatter_feature],
-                    marker_colorscale=temp_colorscale,
+                    #marker_
+                    #marker_
                     marker=dict(
+                        color=df[scatter_feature],
+                        colorscale=temp_colorscale,
                         size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
                         showscale=show_colorscale,
                         opacity=DEFAULT_OPACITY if opacity is None else opacity,
@@ -1317,7 +1324,7 @@ def plot_scatter(
             ]
 
             clonal_df = pd.DataFrame(index = df.index)
-            clonal_df['Clonal data'] = "Rest" if not add_volume else 0
+            clonal_df['Clonal data'] = "Background" if not add_volume else 0
             clones_cumulated = []
             cells_numeric = df.index.get_indexer(filtered_df.index)
             for cell in cells_numeric:
@@ -1328,15 +1335,16 @@ def plot_scatter(
 
             clones_cumulated = np.concatenate(clones_cumulated).ravel()
             clones_cumulated = np.unique(clones_cumulated)
-            clonal_df['Clonal data'].iloc[clones_cumulated] = "Clones" if not add_volume else 0
-            clonal_df['Clonal data'].iloc[filtered_df.index] = "Selected cells" if not add_volume else 1
+            clonal_df['Clonal data'].iloc[clones_cumulated] = "Clones" if not add_volume else 1
+            clonal_df['Clonal data'].iloc[filtered_df.index] = "Selected cells" if not add_volume else 2
             clonal_df = pd.concat([df, clonal_df], axis=1)
+            feature_is_not_qualitative = False if add_volume else True
         try:
             fig_data, volume_data = scatter_plot_data_generator(
                 clonal_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, 'Clonal data', show_colorscale, hover_data,
                 hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
-                custom_colorscale, x, y, z, True, colorscale_quantiles, 
+                custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles, 
                 add_volume, cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth,
                 sd_scaler, grid_size, radius_scaler)
         except:
