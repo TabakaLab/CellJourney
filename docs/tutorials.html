@@ -184,9 +184,10 @@ print(f&quot;Full dataset: {full_dataset_size:.2f} MB, slim dataset: {slim_datas
 <pre><code>Full dataset: 1756.84 MB, slim dataset: 14.64 MB
 </code></pre>
 <h3 id="lineage-tracing">Lineage tracing</h3>
-<p>In this section, we will prepare a dataset designed for cell lineage tracing. The data used stems from the study by <a href="https://www.science.org/doi/10.1126/science.aaw3381">C. Weinreb <em>et al.</em> (2020)</a>. The original files are hosted in <a href="https://github.com/AllonKleinLab/paper-data/tree/master/Lineage_tracing_on_transcriptional_landscapes_links_state_to_fate_during_differentiation#experiment-1-in-vitro-differentiation-time-course">Allon Klein’s lab GitHub repository</a>.</p>
+<p>In this section, we will prepare a dataset designed for cell lineage tracing. The data used originates from the study by <a href="https://www.science.org/doi/10.1126/science.aaw3381">C. Weinreb <em>et al.</em> (2020)</a>. The original files are hosted in <a href="https://github.com/AllonKleinLab/paper-data/tree/master/Lineage_tracing_on_transcriptional_landscapes_links_state_to_fate_during_differentiation#experiment-1-in-vitro-differentiation-time-course">Allon Klein’s lab GitHub repository</a>.</p>
 <p>All the required files can be downloaded automatically using the script provided below. Please ensure that you update the <code>my_path</code> variable to reflect your local directory structure.</p>
-<pre><code>from urllib.request import urlretrieve
+<pre><code>import scanpy as sc
+from urllib.request import urlretrieve
 from pathlib import Path
 from scipy.io import mmread
 from pandas import read_csv
@@ -207,9 +208,9 @@ files = {
                 f'{my_path}{filename}')
 </code></pre>
 <p>Once the download is complete, we load the counts, gene names, and metadata into an AnnData object.</p>
-<pre><code>X = mmread(files['counts']).tocsr()
-genes = read_csv(files['genes'], header=None, names=['gene_symbol'])
-meta = read_csv(files['metadata'], sep='\t')
+<pre><code>X = mmread(Path(my_path, files['counts'])).tocsr()
+genes = read_csv(Path(my_path, files['genes']), header=None, names=['gene_symbol'])
+meta = read_csv(Path(my_path, files['metadata']), sep='\t')
 
 adata = sc.AnnData(X=X)
 adata.var_names = genes['gene_symbol'].values
@@ -220,7 +221,7 @@ adata
     obs: 'Library', 'Cell barcode', 'Time point', 'Starting population', 'Cell type annotation', 'Well', 'SPRING-x', 'SPRING-y'
 </code></pre>
 <p>We then integrate the clonal information into the obsm layer named <code>Clones</code>:</p>
-<pre><code>clones = mmread(files['clones']).tocsc()
+<pre><code>clones = mmread(Path(my_path, files['clones'])).tocsc()
 adata.obsm['Clones'] = clones
 </code></pre>
 <p>Next, we process the dataset following a standard Scanpy workflow. For a deeper dive into these steps, please refer to the <a href="https://scanpy.readthedocs.io/en/stable/">Scanpy documentation</a>. Please remember that the umap function must have the <code>n_components</code> parameter set to 3.</p>
@@ -249,7 +250,7 @@ adata
     obs: 'Library', 'Cell barcode', 'Time point', 'Starting population', 'Cell type annotation', 'Well', 'SPRING-x', 'SPRING-y'
     obsm: 'Clones', 'X_umap'
 </code></pre>
-<p>Additionally, we can rename cell types. The mapping is based on <a href="https://www.science.org/doi/10.1126/science.aaw3381#sec-1">the results section of the arofementioned article</a>.</p>
+<p>Additionally, we can rename cell types. The mapping is based on <a href="https://www.science.org/doi/10.1126/science.aaw3381#sec-1">the results section of the aforementioned article</a>.</p>
 <pre><code>mapping = {
     'Undifferentiated': 'Undifferentiated',
     'Monocyte': 'Monocyte',
@@ -268,7 +269,7 @@ adata
 adata.obs['Cell type annotation'] = adata.obs['Cell type annotation'].map(mapping)
 </code></pre>
 <p>Finally, save the processed dataset</p>
-<pre><code>adata.write(Path(my_path, 'clonal_data.h5ad')
+<pre><code>adata.write(Path(my_path, 'clonal_data.h5ad'))
 </code></pre>
 <h3 id="recreating-article-figures">Recreating article figures</h3>
 <h4 id="pancreatic-endocrinogenesis">Pancreatic endocrinogenesis</h4>
