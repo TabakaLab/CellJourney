@@ -694,7 +694,7 @@ scatter_plot_accordion = dmc.Accordion(
                                             value=2,
                                             precision=2,
                                             step=1,
-                                            label='Gaussian filter standard deviation multipler',
+                                            label='Gaussian filter standard deviation multiplier',
                                             icon=DashIconify(icon='fluent-mdl2:scale-volume')
                                         ),
                                         dmc.NumberInput(
