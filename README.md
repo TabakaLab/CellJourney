@@ -91,9 +91,9 @@ docker run -e PORT=8082 -p 8082:8082 celljourney
 
 ## ⚡ Example datasets
 
- - [Hair folicle](https://github.com/TabakaLab/CellJourney/blob/main/datasets/hair_folicle.csv)
- - [Mouse pancreatic endocrinogenesis](https://github.com/TabakaLab/CellJourney/blob/main/datasets/pancreas.h5ad)
- - [Human bone marrow mononuclear cell progenitors](https://github.com/TabakaLab/CellJourney/blob/main/datasets/bone_marrow.h5mu)
+ - csv: [hair follicle (GSE140203)](https://github.com/TabakaLab/CellJourney/blob/main/datasets/hair_follicle.csv)
+ - h5ad: [mouse pancreatic endocrinogenesis (GSE132188)](https://github.com/TabakaLab/CellJourney/blob/main/datasets/pancreas.h5ad)
+ - h5mu: [human bone marrow mononuclear cell progenitors (GSE128639)](https://github.com/TabakaLab/CellJourney/blob/main/datasets/bone_marrow.h5mu)
 
 
 ## ⚡ Learn more
