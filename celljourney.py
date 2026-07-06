@@ -29,7 +29,6 @@ from plotly.subplots import make_subplots
 from scipy.interpolate import interpn, interp1d, griddata, Rbf, RBFInterpolator
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree, cKDTree
-from scipy.sparse import csr_matrix, issparse
 from sklearn.cluster import KMeans
 from sklearn.exceptions import ConvergenceWarning
 from random import sample
@@ -38,8 +37,6 @@ from src.parameters import *
 
 parser = argparse.ArgumentParser(description='Cell Journey')
 default_port = int(os.getenv("PORT", 8080))
-default_host = os.getenv("HOST", "127.0.0.1")
-parser.add_argument('--host', type=str, default=default_host)
 parser.add_argument('--port', type=int, default=default_port)
 parser.add_argument('--file', type=str, default=None)
 parser.add_argument('--maxfilesize', type=float, default=10.0)
@@ -79,93 +76,11 @@ app = dash.Dash(
 )
 app.title = 'Cell Journey'
 app.layout = layout
-app.server.config['MAX_CONTENT_LENGTH'] = int(1073741824 * args.maxfilesize)
+app.server.config['MAX_CONTENT_LENGTH'] = 1073741824 * args.maxfilesize
 
 
 def open_browser():
-    webbrowser.open_new(f"http://localhost:{args.port}")
-
-
-def clone_array_to_csr(clone_array):
-    return clone_array.tocsr() if issparse(clone_array) else csr_matrix(clone_array)
-
-
-def expression_vector(adata_slice):
-    values = adata_slice.X
-    if issparse(values):
-        values = values.toarray()
-    return np.asarray(values).ravel()
-
-
-def row_sums_vector(matrix):
-    return np.asarray(matrix.sum(axis=1)).ravel()
-
-
-def segment_expression_means(adata, segment_series, tube_segments):
-    segment_values = segment_series.to_numpy()
-    valid_mask = (segment_values >= 0) & (segment_values < tube_segments)
-    columns = range(tube_segments)
-    if not np.any(valid_mask):
-        empty = pd.DataFrame(index=adata.var.index.tolist(), columns=columns, dtype=float)
-        return empty, []
-
-    cell_positions = np.flatnonzero(valid_mask)
-    segment_ids = segment_values[valid_mask].astype(int)
-    counts = np.bincount(segment_ids, minlength=tube_segments)
-    weights = 1.0 / counts[segment_ids]
-    segment_matrix = csr_matrix(
-        (weights, (segment_ids, cell_positions)),
-        shape=(tube_segments, adata.n_obs)
-    )
-
-    means = segment_matrix @ adata.X
-    if issparse(means):
-        means = means.toarray()
-    means = np.asarray(means, dtype=float)
-    means[counts < 2, :] = np.nan
-
-    mean_df = pd.DataFrame(means.T, index=adata.var.index.tolist(), columns=columns)
-    cells_per_segment = [int(count) for count in counts if count >= 2]
-    return mean_df, cells_per_segment
-
-
-def build_vector_grid(df, n_grid, x, y, z, u, v, w):
-    coords = df[[x, y, z]].to_numpy(dtype=float, copy=False)
-    velocities = df[[u, v, w]].to_numpy(dtype=float, copy=False)
-    mins = coords.min(axis=0)
-    maxs = coords.max(axis=0)
-    dx, dy, dz = (maxs - mins) / (2 * n_grid)
-
-    xc = np.linspace(mins[0], maxs[0], n_grid)
-    yc = np.linspace(mins[1], maxs[1], n_grid)
-    zc = np.linspace(mins[2], maxs[2], n_grid)
-
-    mesh = np.meshgrid(xc, yc, zc, indexing='ij')
-    grid_points = np.column_stack([axis.ravel() for axis in mesh])
-    xyz = grid_points.reshape(n_grid, n_grid, n_grid, 3)
-
-    half_widths = np.array([dx, dy, dz], dtype=float)
-    query_scale = np.where(half_widths > 0, half_widths, 1.0)
-    tree = cKDTree(coords / query_scale)
-    indices = tree.query_ball_point(grid_points / query_scale, r=1.0, p=np.inf, workers=-1)
-
-    uvw_flat = np.zeros((grid_points.shape[0], 3), dtype=float)
-    for idx, rows in enumerate(indices):
-        if rows:
-            uvw_flat[idx] = velocities[rows].mean(axis=0)
-
-    return {
-        'xyz': xyz,
-        'uvw': uvw_flat.reshape(n_grid, n_grid, n_grid, 3),
-        'dx': dx,
-        'dy': dy,
-        'dz': dz,
-        'x_range': xc,
-        'y_range': yc,
-        'z_range': zc,
-        'point_tree': tree,
-        'point_scale': query_scale
-    }
+	webbrowser.open_new(f"http://localhost:{args.port}")
 
 
 def parse_data(filename, filetype, content_data):
@@ -178,18 +93,19 @@ def parse_data(filename, filetype, content_data):
 
     if filetype == 'h5mu':
         if custom_path is None:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = os.path.join(temp_dir, filename)
-                with open(temp_path, 'wb') as f:
-                    f.write(decoded)
-                h5_file = md.read_h5mu(temp_path)
+            temp_dir = tempfile.mkdtemp()
+            temp_path = os.path.join(temp_dir, filename)
+            with open(temp_path, 'wb') as f:
+                f.write(decoded)
+            h5_file = md.read_h5mu(temp_path)
+            os.remove(temp_path)
         else:
             h5_file = md.read_h5mu(filename)
         modalities = list(h5_file.mod.keys())
         obsm_metadata = pd.DataFrame(index=h5_file.obs_names)
         for modality in modalities:
-            raw_obsm_keys = list(h5_file[modality].obsm.keys())
-            obsm_keys = [x for x in raw_obsm_keys if x != CLONE_ARRAY_NAME]
+            obsm_keys = list(h5_file[modality].obsm.keys())
+            obsm_keys = [x for x in obsm_keys if x != CLONE_ARRAY_NAME]
             for obsm_key in obsm_keys:
                 if not isinstance(h5_file[modality].obsm[obsm_key], pd.DataFrame):
                     key_shape = h5_file[modality].obsm[obsm_key].shape
@@ -213,8 +129,8 @@ def parse_data(filename, filetype, content_data):
                         [obsm_metadata, h5_file[modality].obsm[obsm_key]], axis=1)
             df = pd.concat([h5_file[modality].obs, obsm_metadata], axis=1)
             df = pd.concat([h5_file.obs, df], axis=1)
-            if CLONE_ARRAY_NAME in raw_obsm_keys:
-                full_clonal_df = clone_array_to_csr(h5_file[modality].obsm[CLONE_ARRAY_NAME])
+            if CLONE_ARRAY_NAME in obsm_keys:
+                full_clonal_df = pd.DataFrame(h5_file[modality].obsm[CLONE_ARRAY_NAME].toarray())
     elif filetype == 'h5ad':
         if custom_path is None:
             buffer = io.BytesIO(decoded)
@@ -246,7 +162,7 @@ def parse_data(filename, filetype, content_data):
                 obsm_metadata = pd.concat([obsm_metadata, h5_file.obsm[obsm_key]], axis=1)
         df = pd.concat([h5_file.obs, obsm_metadata], axis=1)
         if CLONE_ARRAY_NAME in list(h5_file.obsm.keys()):
-            full_clonal_df = clone_array_to_csr(h5_file.obsm[CLONE_ARRAY_NAME])
+            full_clonal_df = h5_file.obsm[CLONE_ARRAY_NAME].tocsr()
     elif filetype == 'csv':
         if custom_path is None:
             buffer = io.StringIO(decoded.decode('utf-8'))
@@ -290,9 +206,9 @@ def clear_memory():
     global single_trajectory
     global df
     global data_type
+    global feature_distribution
     global clonal_df
     global full_clonal_df
-    global feature_distribution
     chunks = None
     grid_cj = None
     trajectories = None
@@ -303,11 +219,29 @@ def clear_memory():
     single_trajectory = None
     data_type = None
     df = None
+    feature_distribution = None
     clonal_df = None
     full_clonal_df = None
-    feature_distribution = None
 
-  
+
+def blank_figure():
+    return go.Figure(
+        layout=dict(
+            template='none',
+            paper_bgcolor='white',
+            plot_bgcolor='white',
+            margin=ZERO_MARGIN_PLOT,
+            xaxis={'visible': False},
+            yaxis={'visible': False},
+            scene=dict(
+                xaxis={'visible': False},
+                yaxis={'visible': False},
+                zaxis={'visible': False},
+            ),
+        )
+    )
+
+
 def generate_volume_plot(
         df, x, y, z, scatter_feature, scatter_colorscale_quantitative, reverse_colorscale_switch, 
         cutoff, volume_opacity, kernel, kernel_smooth, sd_scaler, grid_size, radius):
@@ -411,22 +345,25 @@ def scatter_plot_data_generator(
             custom_colorscale=custom_colorscale
         )
         feature_distribution = df[scatter_feature]
-        fig_data = [
-            go.Scatter3d(
-                x=df[df[scatter_feature] == current_feature][x],
-                y=df[df[scatter_feature] == current_feature][y],
-                z=df[df[scatter_feature] == current_feature][z],
-                mode='markers',
-                name=str(current_feature),
-                text=hover_data_storage['multi'][str(current_feature)] if hover_data != [] else None,
-                hovertemplate='%{text}' if hover_data != [] else None,
-                marker=dict(
-                    size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
-                    opacity=DEFAULT_OPACITY if opacity is None else opacity,
-                    color=colors_dict[str(current_feature)],
-                ),
-            ) for current_feature in sorted(df[scatter_feature].unique())
-        ]
+        fig_data = []
+        for current_feature in sorted(df[scatter_feature].unique()):
+            sub = df[df[scatter_feature] == current_feature]
+            fig_data.append(
+                go.Scatter3d(
+                    x=sub[x],
+                    y=sub[y],
+                    z=sub[z],
+                    mode='markers',
+                    name=str(current_feature),
+                    text=hover_data_storage['multi'][str(current_feature)] if hover_data != [] else None,
+                    hovertemplate='%{text}' if hover_data != [] else None,
+                    marker=dict(
+                        size=DEFAULT_SCATTER_SIZE if point_size is None else point_size,
+                        opacity=DEFAULT_OPACITY if opacity is None else opacity,
+                        color=colors_dict[str(current_feature)],
+                    ),
+                )
+            )
     elif scatter_select_color_type == 'multi' and scatter_feature is not None and \
         not feature_is_qualitative and custom_colorscale_switch and colorscale_quantiles is not None:
         temp_colors = custom_colorscale.split(
@@ -450,8 +387,6 @@ def scatter_plot_data_generator(
                     mode='markers',
                     text=hover_data_storage['single'] if hover_data != [] else None,
                     hovertemplate='%{text}' if hover_data != [] else None,
-                    #marker_
-                    #marker_
                     marker=dict(
                         color=df[scatter_feature],
                         colorscale=temp_colorscale,
@@ -527,41 +462,77 @@ def color_selector(df, scatter_select_color_type, scatter_color, scatter_feature
 
 
 def point_is_out(grid, df, x, y, z, xt, yt, zt, scale):
-    if 'point_tree' in grid and 'point_scale' in grid:
-        point = np.array([xt, yt, zt], dtype=float) / grid['point_scale']
-        return len(grid['point_tree'].query_ball_point(point, r=scale, p=np.inf)) == 0
-
-    filtered_data = df[
+    inside = (
         (df[x] >= xt - grid['dx'] * scale) & (df[x] <= xt + grid['dx'] * scale) &
         (df[y] >= yt - grid['dy'] * scale) & (df[y] <= yt + grid['dy'] * scale) &
-        (df[z] >= zt - grid['dz'] * scale) & (df[z] <= zt + grid['dz'] * scale)]
-    return filtered_data.empty
+        (df[z] >= zt - grid['dz'] * scale) & (df[z] <= zt + grid['dz'] * scale))
+    return not inside.any()
 
 
-def nearest_cell_velocity(df, x, y, z, u, v, w, xt, yt, zt):
-    coordinates = df[[x, y, z]].to_numpy(dtype=float, copy=False)
-    velocities = df[[u, v, w]].to_numpy(dtype=float, copy=False)
-    target = np.array([xt, yt, zt], dtype=float)
-    cell_id = np.argmin(np.sum((coordinates - target) ** 2, axis=1))
-    return velocities[cell_id]
+def build_is_out(df, grid, x, y, z, scale):
+    scale_xyz = np.array([grid['dx'], grid['dy'], grid['dz']], dtype=float)
+    scale_xyz[scale_xyz == 0] = np.finfo(float).tiny
+    tree = cKDTree(df[[x, y, z]].to_numpy(dtype=float) / scale_xyz)
+
+    def is_out(xt, yt, zt):
+        distance, _ = tree.query(np.array([xt, yt, zt]) / scale_xyz, p=np.inf)
+        return distance > scale
+
+    return is_out
 
 
-def build_streamlet_chunks(trajectories, chunk_size):
-    if trajectories is None:
-        return []
-    chunk_size = int(chunk_size)
-    if chunk_size <= 0:
-        return []
-    chunks = []
-    for trajectory in trajectories:
-        for num in range(0, len(trajectory), 2 * chunk_size):
-            chunk = trajectory[num: num + chunk_size]
-            if len(chunk) > 1:
-                chunks.append(chunk)
-    return chunks
+class StreamMask3D:
+    """
+    3D generalisation of matplotlib's streamplot StreamMask: the domain is split
+    into resolution**3 voxels and each voxel may host at most one streamline. A
+    streamline is terminated as soon as it tries to enter a voxel already claimed
+    by a different one, which keeps the drawn lines spaced apart.
+    """
+    def __init__(self, lo, hi, resolution):
+        self.lo = np.asarray(lo, dtype=float)
+        span = np.asarray(hi, dtype=float) - self.lo
+        span[span == 0] = 1.0
+        self.inv_span = resolution / span
+        self.res = resolution
+        self.mask = np.zeros((resolution, resolution, resolution), dtype=np.int32)
+        self.current = None
+        self.claimed = []
+
+    def _voxel(self, point):
+        idx = ((np.asarray(point) - self.lo) * self.inv_span).astype(int)
+        np.clip(idx, 0, self.res - 1, out=idx)
+        return (int(idx[0]), int(idx[1]), int(idx[2]))
+
+    def is_free(self, point):
+        return self.mask[self._voxel(point)] == 0
+
+    def start(self):
+        self.current = None
+        self.claimed = []
+
+    def claim(self, point, traj_id):
+        voxel = self._voxel(point)
+        if voxel == self.current:
+            return True
+        if self.mask[voxel] == 0:
+            self.mask[voxel] = traj_id + 1
+            self.current = voxel
+            self.claimed.append(voxel)
+            return True
+        return False
+
+    def undo(self):
+        for voxel in self.claimed:
+            self.mask[voxel] = 0
+        self.claimed = []
 
 
-def euler_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale, v0='cell'):
+def euler_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale, v0='cell',
+                 mask=None, traj_id=0, is_out=None):
+    if is_out is None:
+        is_out = lambda px, py, pz: point_is_out(grid, df, x, y, z, px, py, pz, scale)
+    if mask is not None:
+        mask.claim((xt, yt, zt), traj_id)
     trajectory = [[xt, yt, zt]]
     for i in range(n_steps):
         if i == 0:
@@ -578,17 +549,15 @@ def euler_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scal
                 yt += velocity[1] * dt
                 zt += velocity[2] * dt
             elif v0 == 'cell':
-                velocity = nearest_cell_velocity(df, x, y, z, u, v, w, xt, yt, zt)
-                xt += velocity[0] * dt
-                yt += velocity[1] * dt
-                zt += velocity[2] * dt
+                cell_id = abs(df[x] - xt).argmin()
+                xt += df[u][cell_id] * dt
+                yt += df[v][cell_id] * dt
+                zt += df[w][cell_id] * dt
             elif v0 == 'max':
                 filtered_data = df[
                     (df[x] >= xt - grid['dx'] * scale) & (df[x] <= xt + grid['dx'] * scale) &
                     (df[y] >= yt - grid['dy'] * scale) & (df[y] <= yt + grid['dy'] * scale) &
                     (df[z] >= zt - grid['dz'] * scale) & (df[z] <= zt + grid['dz'] * scale)]
-                if filtered_data.empty:
-                    return trajectory
                 l2_norms = np.linalg.norm(filtered_data[[u, v, w]], axis=1)
                 fastest_cell_id = l2_norms.argmax()
                 velocities = filtered_data[[u, v, w]].iloc[fastest_cell_id]
@@ -610,13 +579,20 @@ def euler_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scal
 
         step_size = np.linalg.norm(
             np.array(trajectory[-1]) - np.array([xt, yt, zt]))
-        if point_is_out(grid, df, x, y, z, xt, yt, zt, scale) or (step_size < diff):
+        if is_out(xt, yt, zt) or (step_size < diff):
+            break
+        if mask is not None and not mask.claim((xt, yt, zt), traj_id):
             break
         trajectory.append([xt, yt, zt])
     return trajectory
 
 
-def rk4_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale, v0='cell'):
+def rk4_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale, v0='cell',
+               mask=None, traj_id=0, is_out=None):
+    if is_out is None:
+        is_out = lambda px, py, pz: point_is_out(grid, df, x, y, z, px, py, pz, scale)
+    if mask is not None:
+        mask.claim((xt, yt, zt), traj_id)
     trajectory = [[xt, yt, zt]]
     for i in range(n_steps):
         if i == 0:
@@ -631,19 +607,17 @@ def rk4_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale,
                     k1 = [0, 0, 0]
 
             elif v0 == 'cell':
-                k1 = nearest_cell_velocity(df, x, y, z, u, v, w, xt, yt, zt)
+                cell_id = abs(df[x] - xt).argmin()
+                k1 = [df[u][cell_id], df[v][cell_id], df[w][cell_id]]
             elif v0 == 'max':
                 filtered_data = df[
                     (df[x] >= xt - grid['dx'] * scale) & (df[x] <= xt + grid['dx'] * scale) &
                     (df[y] >= yt - grid['dy'] * scale) & (df[y] <= yt + grid['dy'] * scale) &
                     (df[z] >= zt - grid['dz'] * scale) & (df[z] <= zt + grid['dz'] * scale)]
-                if filtered_data.empty:
-                    k1 = [0, 0, 0]
-                else:
-                    l2_norms = np.linalg.norm(filtered_data[[u, v, w]], axis=1)
-                    fastest_cell_id = l2_norms.argmax()
-                    velocities = filtered_data[[u, v, w]].iloc[fastest_cell_id]
-                    k1 = [velocities[u], velocities[v], velocities[w]]
+                l2_norms = np.linalg.norm(filtered_data[[u, v, w]], axis=1)
+                fastest_cell_id = l2_norms.argmax()
+                velocities = filtered_data[[u, v, w]].iloc[fastest_cell_id]
+                k1 = [velocities[u], velocities[v], velocities[w]]
         else:
             try:
                 k1 = interpn(
@@ -686,10 +660,66 @@ def rk4_method(grid, df, n_steps, dt, diff, x, y, z, u, v, w, xt, yt, zt, scale,
         zt += dt / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2])
         step_size = np.linalg.norm(
             np.array(trajectory[-1]) - np.array([xt, yt, zt]))
-        if point_is_out(grid, df, x, y, z, xt, yt, zt, scale) or (step_size < diff):
+        if is_out(xt, yt, zt) or (step_size < diff):
+            break
+        if mask is not None and not mask.claim((xt, yt, zt), traj_id):
             break
         trajectory.append([xt, yt, zt])
     return trajectory
+
+
+def average_vector_field(df, x, y, z, u, v, w, n_grid):
+    xv = df[x].to_numpy(dtype=float)
+    yv = df[y].to_numpy(dtype=float)
+    zv = df[z].to_numpy(dtype=float)
+    uv = df[u].to_numpy(dtype=float)
+    vv = df[v].to_numpy(dtype=float)
+    wv = df[w].to_numpy(dtype=float)
+
+    xc = np.linspace(xv.min(), xv.max(), n_grid)
+    yc = np.linspace(yv.min(), yv.max(), n_grid)
+    zc = np.linspace(zv.min(), zv.max(), n_grid)
+    dx = (xv.max() - xv.min()) / (2 * n_grid)
+    dy = (yv.max() - yv.min()) / (2 * n_grid)
+    dz = (zv.max() - zv.min()) / (2 * n_grid)
+
+    def box_index(values, centers, half_width):
+        if n_grid > 1:
+            step = (centers[-1] - centers[0]) / (n_grid - 1)
+            raw = (values - centers[0]) / step
+        else:
+            raw = np.zeros_like(values)
+        k = np.rint(np.where(np.isfinite(raw), raw, 0)).astype(int)
+        np.clip(k, 0, n_grid - 1, out=k)
+        inside = (values >= centers[k] - half_width) & (values <= centers[k] + half_width)
+        k[~inside] = -1
+        return k
+
+    bx = box_index(xv, xc, dx)
+    by = box_index(yv, yc, dy)
+    bz = box_index(zv, zc, dz)
+
+    valid = (bx >= 0) & (by >= 0) & (bz >= 0)
+    lin = (bx[valid] * n_grid + by[valid]) * n_grid + bz[valid]
+
+    n_cells = n_grid ** 3
+    uvw = np.full((n_cells, 3), np.nan)
+    for axis, component in enumerate((uv, vv, wv)):
+        col = component[valid]
+        finite = np.isfinite(col)
+        lin_f = lin[finite]
+        counts = np.bincount(lin_f, minlength=n_cells)
+        sums = np.bincount(lin_f, weights=col[finite], minlength=n_cells)
+        with np.errstate(invalid='ignore'):
+            uvw[:, axis] = sums / counts
+    uvw = np.nan_to_num(uvw).reshape(n_grid, n_grid, n_grid, 3)
+    xyz = np.stack(np.meshgrid(xc, yc, zc, indexing='ij'), axis=-1)
+
+    return {
+        'xyz': xyz, 'uvw': uvw,
+        'dx': dx, 'dy': dy, 'dz': dz,
+        'x_range': xc, 'y_range': yc, 'z_range': zc
+    }
 
 
 @app.callback(
@@ -855,7 +885,8 @@ def update_coordinates_selectors(output):
         if df is None or df.empty:
             raise PreventUpdate
         else:
-            return [[{'label': column, 'value': column} for column in df.columns]] * 8
+            options = [{'label': column, 'value': column} for column in df.columns]
+            return [options] * 8
 
 
 @app.callback(
@@ -869,6 +900,8 @@ def update_coordinates_selectors(output):
 )
 def update_tube_radius_and_step(upload, x, y, z):
     global df
+    if df is None or not all(col in df.columns for col in (x, y, z)):
+        raise PreventUpdate
     r_x = df[x].max() - df[x].min()
     r_y = df[y].max() - df[y].min()
     r_z = df[z].max() - df[z].min()
@@ -888,8 +921,12 @@ def show_normalization_window(_):
     global data_type
     global modalities
     if data_type == 'h5ad':
-        row_sums = row_sums_vector(h5_file.X)
-        if np.any(np.abs(np.diff(row_sums)) > 0.01):
+        row_sums = sum(h5_file.X.sum(axis=1).tolist(), [])
+        big_differences = 0
+        for i, _ in enumerate(row_sums[:-1]):
+            if np.abs(row_sums[i + 1] - row_sums[i]) > 0.01:
+                big_differences+=1
+        if big_differences > 0:
             return {'display': 'block'}, {'display': 'none'}, []
         else:
             return {'display': 'none'}, {'display': 'none'}, []
@@ -897,8 +934,12 @@ def show_normalization_window(_):
         if modalities is not None:
             bad_modalities = []
             for modality in modalities:
-                row_sums = row_sums_vector(h5_file[modality].X)
-                if np.any(np.abs(np.diff(row_sums)) > 0.01):
+                row_sums = sum(h5_file[modality].X.sum(axis=1).tolist(), [])
+                big_differences = 0
+                for i, _ in enumerate(row_sums[:-1]):
+                    if np.abs(row_sums[i + 1] - row_sums[i]) > 0.01:
+                        big_differences+=1
+                if big_differences > 0:
                     bad_modalities.append(modality)
             if len(bad_modalities) > 0:
                 return {'display': 'block'}, {'display': 'block'}, bad_modalities
@@ -997,10 +1038,10 @@ def add_select_modality_dropdown(_):
     prevent_initial_call=True
 )
 def set_default_modality(modalities):
-    if len(modalities) > 0:
+    if modalities is not None and len(modalities) > 0:
         return modalities[-1]
     else:
-        raise PreventUpdate
+        return None
 
 
 @app.callback(
@@ -1014,7 +1055,10 @@ def set_default_modality(modalities):
 )
 def add_h5mu_dropdown(modality):
     global h5_file
-    features = list(h5_file[modality].var.index)
+    try:
+        features = list(h5_file[modality].var.index)
+    except Exception:
+        return {'display': 'none'}, '', None, '', None
     return {'display': 'block'}, f'Insert feature name, e.g. {features[0]}', None, f'Select custom {modality} features', None
 
 
@@ -1029,7 +1073,10 @@ def update_h5mu_options(search_value,  modality):
     if not search_value:
         raise PreventUpdate
     global h5_file
-    options = list(h5_file[modality].var.index)
+    try:
+        options = list(h5_file[modality].var.index)
+    except Exception:
+        raise PreventUpdate
     options_final = [o for o in options if search_value.lower() in o.lower()]
     scatter_modality_var = options_final[:MAX_DROPDOWN] if \
         len(options_final) > MAX_DROPDOWN else options_final
@@ -1078,14 +1125,18 @@ def update_heatmap_custom_features(search_value, modality):
     global data_type
     if not search_value or h5_file is None:
         raise PreventUpdate
-    if data_type=="h5ad":
-        options = list(h5_file.var.index)
-    elif data_type=="h5mu" and modality is not None:
-        options = list(h5_file[modality].var.index)
-    else:
+    try:
+        if data_type == "h5ad":
+            options = list(h5_file.var.index)
+        elif data_type == "h5mu":
+            options = list(h5_file[modality].var.index)
+        else:
+            raise PreventUpdate
+    except PreventUpdate:
+        raise
+    except Exception:
         raise PreventUpdate
-    options_final = [o for o in options if search_value.lower() in o.lower()]
-    return options_final[:MAX_DROPDOWN] if len(options_final) > MAX_DROPDOWN else options_final
+    return options
 
 
 @app.callback(
@@ -1306,19 +1357,18 @@ def hover_data_storage(feature, hover_data, _):
         hover_data_storage['single'] = None
         hover_data_storage['multi'] = None
     else:
-        hover_text = []
-        for i in df.index:
-            hover_text.append(''.join(
-                f'<b>{datum}:</b> {df.iloc[i][datum]}<br>' for datum in df[hover_data]) + '<extra></extra>')
-        hover_data_storage['single'] = hover_text
+        def build_hover(frame):
+            return [
+                ''.join(f'<b>{col}:</b> {value}<br>' for col, value in zip(hover_data, row))
+                + '<extra></extra>'
+                for row in frame[hover_data].itertuples(index=False, name=None)
+            ]
+
+        hover_data_storage['single'] = build_hover(df)
         if feature is not None:
             for current_feature in sorted(df[feature].unique()):
-                sub_df = df[df[feature] == current_feature][hover_data]
-                feature_elements = []
-                for i, row in sub_df.iterrows():
-                    feature_elements.append(''.join(
-                        f'<b>{datum}:</b> {row[datum]}<br>' for datum in hover_data) + '<extra></extra>')
-                hover_data_storage['multi'][str(current_feature)] = feature_elements
+                sub_df = df[df[feature] == current_feature]
+                hover_data_storage['multi'][str(current_feature)] = build_hover(sub_df)
     return hover_data_storage
 
 
@@ -1347,7 +1397,7 @@ def color_type_is_qualitative(scatter_feature, _):
 @app.callback(
     Output('clone_switch', 'checked'),
     Input('clone_switch', 'checked'),
-    prevent_initial_call=True
+    prevent_initial_update=True
 )
 def clear_clonal_df_when_off(clone_switch):
     if clone_switch == False:
@@ -1416,11 +1466,17 @@ def plot_scatter(
 
     if something_is_none(submitted, df, x, y, z) or something_is_empty_string(point_size, opacity):
         raise PreventUpdate
-    
+    if not all(col in df.columns for col in (x, y, z)):
+        # Selection left over from a previously loaded dataset.
+        raise PreventUpdate
+
+    clonal_var_name = None
+    temp_df = None
+    temp_var_name = None
     feature_is_not_qualitative = False
     # CLONAL DATA
-    if clone_switch == True and full_clonal_df is not None:
-        if (ctx.triggered_id == 'scatter_plot' or ctx.triggered_id == 'clone_radius') and selected_cell is not None:
+    if clone_switch == True and CLONE_ARRAY_NAME in list(h5_file.obsm.keys()):
+        if ctx.triggered_id == 'scatter_plot' or ctx.triggered_id == 'clone_radius':
             x_min = selected_cell['points'][0]['x'] - clone_radius
             x_max = selected_cell['points'][0]['x'] + clone_radius
             y_min = selected_cell['points'][0]['y'] - clone_radius
@@ -1439,23 +1495,18 @@ def plot_scatter(
             clones_cumulated = []
             cells_numeric = df.index.get_indexer(filtered_df.index)
             for cell in cells_numeric:
-                if cell < 0 or cell >= full_clonal_df.shape[0]:
-                    continue
                 clone_number = full_clonal_df.getrow(cell)
                 if len(clone_number.indices) > 0:
                     clone_number = clone_number.indices[0]
                     clones_cumulated.append((full_clonal_df[:,clone_number] == 1).nonzero()[0])
 
-            if len(clones_cumulated) > 0:
-                clones_cumulated = np.concatenate(clones_cumulated).ravel()
-                clones_cumulated = np.unique(clones_cumulated)
-                clones_cumulated = np.intersect1d(clones_cumulated, clonal_df.index.to_numpy())
-                clonal_df.loc[clones_cumulated, 'Clonal data'] = "Clones" if not add_volume else 1
+            clones_cumulated = np.concatenate(clones_cumulated).ravel()
+            clones_cumulated = np.unique(clones_cumulated)
+            clone_col = clonal_df.columns.get_loc('Clonal data')
+            clonal_df.iloc[clones_cumulated, clone_col] = "Clones" if not add_volume else 1
             clonal_df.loc[filtered_df.index, 'Clonal data'] = "Selected cells" if not add_volume else 2
             clonal_df = pd.concat([df, clonal_df], axis=1)
             feature_is_not_qualitative = False if add_volume else True
-        elif clonal_df is None:
-            raise PreventUpdate
         try:
             fig_data, volume_data = scatter_plot_data_generator(
                 clonal_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
@@ -1468,30 +1519,32 @@ def plot_scatter(
             raise PreventUpdate
 
     elif general_or_modality == 'single_modality' and scatter_h5ad_var is not None:
-        temp_var_name = f'{scatter_h5ad_var}'
-        expression_array = expression_vector(h5_file[:, scatter_h5ad_var])
-        temp_pd = pd.DataFrame({temp_var_name: expression_array})
-        temp_df = pd.concat([df, temp_pd], axis=1)
         try:
+            temp_var_name = f'{scatter_h5ad_var}'
+            expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
+            expression_array = [item[0] for item in expression_array]
+            temp_pd = pd.DataFrame({temp_var_name: expression_array})
+            temp_df = pd.concat([df, temp_pd], axis=1)
             fig_data, volume_data = scatter_plot_data_generator(
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
-                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
+                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch,
                 custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles,
                 add_volume, cutoff, volume_opacity, volume_single_color, kernel, kernel_smooth,
                 sd_scaler, grid_size, radius_scaler)
         except:
             raise PreventUpdate
     elif general_or_modality == 'modality' and scatter_modality_var is not None:
-        temp_var_name = f'{modality}: {scatter_modality_var}'
-        expression_array = expression_vector(h5_file[modality][:, scatter_modality_var])
-        temp_pd = pd.DataFrame({temp_var_name: expression_array})
-        temp_df = pd.concat([df, temp_pd], axis=1)
         try:
+            temp_var_name = f'{modality}: {scatter_modality_var}'
+            expression_array = h5_file[modality][:,scatter_modality_var].X.toarray().tolist()
+            expression_array = [item[0] for item in expression_array]
+            temp_pd = pd.DataFrame({temp_var_name: expression_array})
+            temp_df = pd.concat([df, temp_pd], axis=1)
             fig_data, volume_data = scatter_plot_data_generator(
                 temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
                 scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
-                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, 
+                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch,
                 custom_colorscale, x, y, z, feature_is_not_qualitative, colorscale_quantiles,
                 add_volume, cutoff, volume_opacity,  volume_single_color, kernel, kernel_smooth,
                 sd_scaler, grid_size, radius_scaler)
@@ -1567,7 +1620,10 @@ def plot_cone(submitted, cone_size, opacity, colorscale, theme, show_ticks_cone,
 
     if something_is_none(submitted, df, x, y, z, u, v, w) or something_is_empty_string(cone_size, opacity):
         raise PreventUpdate
-    
+    if not all(col in df.columns for col in (x, y, z, u, v, w)):
+        # Selection left over from a previously loaded dataset.
+        raise PreventUpdate
+
     fig_data = go.Cone(
         x=df[x],
         y=df[y],
@@ -1627,11 +1683,12 @@ def plot_cone(submitted, cone_size, opacity, colorscale, theme, show_ticks_cone,
     State('trajectory_select_type', 'value'),
     State('streamlines_indices', 'data'),
     State('streamlets_indices', 'data'),
+    State('streamline_density', 'value'),
     prevent_initial_call=True,
 )
 def calculate_trajectories(
     submitted, updated, subset, reset, n_grid, n_steps, dt, diff, x, y, z, u, v, w, chunk_size,
-    scale, method, proportion, streamtype, streamlines_indices, streamlets_indices):
+    scale, method, proportion, streamtype, streamlines_indices, streamlets_indices, density):
     global df, grid_trajectories, trajectories, chunks
     
     if something_is_none(df, x, y, z, u, v, w) or something_is_empty_string(n_grid, n_steps, dt, diff, chunk_size, scale):
@@ -1645,44 +1702,65 @@ def calculate_trajectories(
         print(f'Generating trajectories for n_grid={n_grid}, n_steps={n_steps}, step_size={dt}, diff={diff}')
         start_time = time.time()
         print(f'1/2 Averaging vector space consisting of {n_grid ** 3} grid cells')
-        grid = build_vector_grid(df, n_grid, x, y, z, u, v, w)
-        grid['uvw'] = np.nan_to_num(grid['uvw'])
-        nonzero = np.linalg.norm(grid['uvw'].reshape(-1, 3), axis=1) > 0
-        nonzero_sum = sum(nonzero)
-        starting_points = [
-            grid['xyz'][..., 0].flatten()[nonzero] +
-            np.random.normal(scale=grid['dx'], size=nonzero_sum, loc=0),
-            grid['xyz'][..., 1].flatten()[nonzero] +
-            np.random.normal(scale=grid['dy'], size=nonzero_sum, loc=0),
-            grid['xyz'][..., 2].flatten()[nonzero] +
-            np.random.normal(scale=grid['dz'], size=nonzero_sum, loc=0),
-        ]
+        grid = average_vector_field(df, x, y, z, u, v, w, n_grid)
+        uvw_flat = grid['uvw'].reshape(-1, 3)
+        nonzero = uvw_flat[:, 0].astype(bool) & uvw_flat[:, 1].astype(bool) & uvw_flat[:, 2].astype(bool)
+        speed = np.linalg.norm(uvw_flat, axis=1)
+        seed_indices = np.where(nonzero)[0]
+        # Seed high-speed regions first: their long streamlines claim territory
+        # early and thin out the crowded areas (matplotlib streamplot idea).
+        seed_indices = seed_indices[np.argsort(speed[seed_indices])[::-1]]
+        jitter = np.random.normal(size=(len(seed_indices), 3)) * \
+            np.array([grid['dx'], grid['dy'], grid['dz']])
+        seeds = grid['xyz'].reshape(-1, 3)[seed_indices] + jitter
+        nonzero_sum = len(seed_indices)
         end_time = time.time()
         print(f'Finished in {round(end_time - start_time, 3)} seconds.')
+
+        is_out = build_is_out(df, grid, x, y, z, scale)
+        stream_mask = None
+        if density and density > 0:
+            resolution = max(2, int(round(n_grid * density)))
+            stream_mask = StreamMask3D(
+                lo=[grid['x_range'][0], grid['y_range'][0], grid['z_range'][0]],
+                hi=[grid['x_range'][-1], grid['y_range'][-1], grid['z_range'][-1]],
+                resolution=resolution)
+
         print(f'2/2 Calculating trajectories for {nonzero_sum} starting points.')
         start_time = time.time()
-        bar_trajectories = progressbar.ProgressBar(
-            maxval=nonzero_sum, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-        bar_trajectories.start()
-        counter = 0
         trajectories = []
-        for x0, y0, z0 in zip(starting_points[0], starting_points[1], starting_points[2]):
-            counter += 1
+        total = max(1, nonzero_sum)
+        report_every = max(1, total // 100)
+        for counter, (x0, y0, z0) in enumerate(seeds, start=1):
+            if counter % report_every == 0 or counter == total:
+                filled = int(50 * counter / total)
+                print(f"\r[{'=' * filled}{' ' * (50 - filled)}] {int(100 * counter / total)}%",
+                      end='', flush=True)
+            if stream_mask is not None:
+                if not stream_mask.is_free((x0, y0, z0)):
+                    continue
+                stream_mask.start()
             trajectory = np.array(
                 integration_method[method](
                     grid=grid, df=df, n_steps=n_steps, dt=dt, diff=diff,
                     x=x, y=y, z=z, u=u, v=v, w=w, xt=x0, yt=y0, zt=z0,
-                    scale=scale, v0='interpolated'))
+                    scale=scale, v0='interpolated',
+                    mask=stream_mask, traj_id=len(trajectories), is_out=is_out))
             if len(trajectory) > 2:
                 trajectories.append(trajectory)
-            bar_trajectories.update(counter)
-        bar_trajectories.finish()
+            elif stream_mask is not None:
+                stream_mask.undo()
+        print()
         end_time = time.time()
         print(f'Finished! Generated {len(trajectories)} trajectories in {round(end_time - start_time, 3)} seconds.')
         grid_trajectories = grid
         if len(trajectories) == 0:
             raise PreventUpdate
-        chunks = build_streamlet_chunks(trajectories, chunk_size)
+        chunks = []
+        for trajectory in trajectories:
+            for idx, num in enumerate(range(0, len(trajectory), 2 * chunk_size)):
+                if not idx % 2:
+                    chunks.append(trajectory[num: num + chunk_size])
         streamlines_indices = list(range(len(trajectories)))
         streamlets_indices = list(range(len(chunks)))
     elif button_id == 'submit_update_streamlets':
@@ -1691,7 +1769,10 @@ def calculate_trajectories(
             streamlets_indices = []
             streamlines_indices = []
         else:
-            chunks = build_streamlet_chunks(trajectories, chunk_size)
+            for trajectory in trajectories:
+                for idx, num in enumerate(range(0, len(trajectory), 2 * chunk_size)):
+                    if not idx % 2:
+                        chunks.append(trajectory[num: num + chunk_size])
             streamlets_indices = list(range(len(chunks)))
     elif button_id == 'submit_subset_trajectories':
         if streamtype == 'streamlines':
@@ -1703,8 +1784,8 @@ def calculate_trajectories(
             streamlets_indices = sample(
                 streamlets_indices, int(t_len * proportion))
     else:
-        streamlines_indices = list(range(len(trajectories))) if trajectories is not None else []
-        streamlets_indices = list(range(len(chunks))) if chunks is not None else []
+        streamlines_indices = list(range(len(trajectories)))
+        streamlets_indices = list(range(len(chunks)))
 
     return True, streamlines_indices, streamlets_indices
 
@@ -1875,36 +1956,43 @@ def plot_trajectories(
 
     fig_data = []
     volume_data = None
+    if add_scatterplot and not all(col in df.columns for col in (x, y, z)):
+        raise PreventUpdate
     if add_scatterplot:
-        if general_or_modality == 'single_modality' and scatter_h5ad_var is not None:
-            temp_var_name = f'{scatter_h5ad_var}'
-            expression_array = expression_vector(h5_file[:, scatter_h5ad_var])
-            temp_pd = pd.DataFrame({temp_var_name: expression_array})
-            temp_df = pd.concat([df, temp_pd], axis=1)
-            fig_data, volume_data = scatter_plot_data_generator(
-                temp_df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
-                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-                x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity,
-                volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
-        elif general_or_modality == 'modality' and scatter_modality_var is not None:
-            temp_var_name = f'{modality}: {scatter_modality_var}'
-            expression_array = expression_vector(h5_file[modality][:, scatter_modality_var])
-            temp_pd = pd.DataFrame({temp_var_name: expression_array})
-            temp_df = pd.concat([df, temp_pd], axis=1)
-            fig_data, volume_data = scatter_plot_data_generator(
-                temp_df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
-                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-                x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, 
-                volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
-        else:
-            fig_data, volume_data = scatter_plot_data_generator(
-                df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
-                scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, hover_data,
-                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-                x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity,
-                volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+        try:
+            if general_or_modality == 'single_modality' and scatter_h5ad_var is not None:
+                temp_var_name = f'{scatter_h5ad_var}'
+                expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
+                expression_array = [item[0] for item in expression_array]
+                temp_pd = pd.DataFrame({temp_var_name: expression_array})
+                temp_df = pd.concat([df, temp_pd], axis=1)
+                fig_data, volume_data = scatter_plot_data_generator(
+                    temp_df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                    scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
+                    hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale,
+                    x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity,
+                    volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+            elif general_or_modality == 'modality' and scatter_modality_var is not None:
+                temp_var_name = f'{modality}: {scatter_modality_var}'
+                expression_array = h5_file[modality][:, scatter_modality_var].X.toarray().tolist()
+                expression_array = [item[0] for item in expression_array]
+                temp_pd = pd.DataFrame({temp_var_name: expression_array})
+                temp_df = pd.concat([df, temp_pd], axis=1)
+                fig_data, volume_data = scatter_plot_data_generator(
+                    temp_df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                    scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
+                    hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale,
+                    x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity,
+                    volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+            else:
+                fig_data, volume_data = scatter_plot_data_generator(
+                    df, point_size, scatter_opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                    scatter_color, scatter_select_color_type, scatter_feature, show_colorscale, hover_data,
+                    hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale,
+                    x, y, z, feature_is_qualitative, colorscale_quantiles, add_volume, cutoff, volume_opacity,
+                    volume_single_color, kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+        except Exception:
+            fig_data, volume_data = [], None
     if trajectory_type == 'streamlines' and finished_generating_trajectories:
         fig_data += [
             go.Scatter3d(
@@ -1995,13 +2083,11 @@ def cell_journey_grid(submitted, n_grid, x, y, z, u, v, w):
     if something_is_none(submitted, df, x, y, z, u, v, w):
         raise PreventUpdate
 
-    total_scaled = n_grid ** 3
     start_time = time.time()
-    print(f'Averaging vector space consisting of {total_scaled} grid cells')
-    grid_cj = build_vector_grid(df, n_grid, x, y, z, u, v, w)
+    print(f'Averaging vector space consisting of {n_grid ** 3} grid cells')
+    grid_cj = average_vector_field(df, x, y, z, u, v, w, n_grid)
     end_time = time.time()
     print(f'Finished in {round(end_time - start_time, 3)} seconds.')
-    grid_cj['uvw'] = np.nan_to_num(grid_cj['uvw'])
     return True
 
 
@@ -2111,32 +2197,41 @@ def generate_single_cell_trajectory(
     cells_and_segments = pd.DataFrame(
         {'segment___': df.shape[0] * [-1]}, index=df.index)
 
-    if not filtered_df.empty:
-        filtered_coords = filtered_df[[x, y, z]].to_numpy(dtype=float, copy=False)
-        distances, cell_indices = tree.query(filtered_coords)
-        inside_mask = distances < tube_radius
-        if np.any(inside_mask):
-            inside_indices = filtered_df.index[inside_mask]
-            inside_segments = np.asarray(chop_indices)[cell_indices[inside_mask]]
-            cells_and_segments.loc[inside_indices, 'segment___'] = inside_segments
+    if len(filtered_df) > 0:
+        distances, cell_indices = tree.query(filtered_df[[x, y, z]].to_numpy())
+        within = distances < tube_radius
+        segments = np.asarray(chop_indices)[cell_indices[within]]
+        cells_and_segments.loc[filtered_df.index[within], 'segment___'] = segments
 
     tube_cells = list(
         cells_and_segments.loc[cells_and_segments['segment___'] > -1].index)
 
-    expression_source = None
     if data_type == 'h5mu' and selected_modality is not None:
-        expression_source = h5_file[selected_modality]
+        dd = pd.DataFrame(
+            index=h5_file[selected_modality].var.index.tolist(), columns=range(tube_segments))
+        dd_rel = pd.DataFrame(
+            index=h5_file[selected_modality].var.index.tolist(), columns=range(tube_segments))
     elif data_type == 'h5ad':
-        expression_source = h5_file
+        dd = pd.DataFrame(index=h5_file.var.index.tolist(), columns=range(tube_segments))
+        dd_rel = pd.DataFrame(
+            index=h5_file.var.index.tolist(), columns=range(tube_segments))
+    cells_per_segment = []
 
-    if expression_source is not None:
-        dd, cells_per_segment = segment_expression_means(
-            expression_source,
-            cells_and_segments['segment___'],
-            tube_segments
-        )
-        dd_rel = dd.subtract(dd.loc[:, 0], axis=0)
-        fold_changes = np.log2(dd.max(axis=1) + 1) - np.log2(dd.min(axis=1) + 1)
+    for i in range(tube_segments + 1):
+        segment_indices = cells_and_segments.loc[cells_and_segments['segment___'] == i].index
+        if len(segment_indices) < 2:
+            continue
+        cells_per_segment.append(len(segment_indices))
+        if data_type == 'h5mu' and selected_modality is not None:
+            dd.loc[:, i] = h5_file[selected_modality][segment_indices, :].X.mean(axis=0)
+        elif data_type == 'h5ad':
+            dd.loc[:, i] = h5_file[segment_indices, :].X.mean(axis=0)
+
+        if heatmap_method == 'relative':
+            dd_rel.loc[:, i] = dd.loc[:, i] - dd.loc[:, 0]
+
+    if data_type == 'h5ad' or (data_type == 'h5mu' and selected_modality is not None):
+        fold_changes = dd.apply(lambda gene: np.log2(max(gene) + 1) - np.log2(min(gene) + 1), axis=1)
         top_genes = list(fold_changes.sort_values(ascending=False)[:n_genes].index)
         if heatmap_group == 'custom' and custom_features is not None:
             if len(custom_features) > 0:
@@ -2148,15 +2243,13 @@ def generate_single_cell_trajectory(
         top_genes_data = dd.loc[top_genes, :] if heatmap_method == 'absolute' else dd_rel.loc[top_genes, :]
         if heatmap_method == 'absolute':
             upper_limit = np.quantile(top_genes_data, 0.95)
-            top_genes_data = top_genes_data.clip(upper=upper_limit)
+            top_genes_data = top_genes_data.applymap(
+                lambda x: upper_limit if x > upper_limit else x)
 
         if heatmap_method == 'relative':
             min_val = top_genes_data.min().min()
             max_val = top_genes_data.max().max()
-            if max_val > min_val:
-                top_genes_data = 4 * (top_genes_data - min_val) / (max_val - min_val) - 2
-            else:
-                top_genes_data = top_genes_data * 0
+            top_genes_data = top_genes_data.applymap(lambda x: 4 * (x - min_val) / (max_val - min_val) - 2)
 
         top_genes_data = top_genes_data.dropna(axis=1)
         try:
@@ -2192,22 +2285,12 @@ def show_additional_plots(
     n_segments, selected_modality, cells_per_segment, heatmap_data, method):
     global data_type
 
-    empty_plot = go.Figure(
-        layout=dict(
-            margin=ZERO_MARGIN_PLOT,
-            scene=dict(
-                xaxis=ZEN_MODE,
-                yaxis=ZEN_MODE,
-                zaxis=ZEN_MODE
-            ),
-            template='none'
-        )
-    )
+    empty_plot = blank_figure()
     if data_type == 'csv':
         raise PreventUpdate
 
     if not (data_type == 'h5mu' or data_type == 'h5ad'):
-        return empty_plot, empty_plot, pd.DataFrame().to_json()
+        return empty_plot, empty_plot, dash.no_update
 
     if data_type == 'h5mu' and selected_modality is None:
         raise PreventUpdate
@@ -2250,9 +2333,8 @@ def show_additional_plots(
         new_order = [rename_dict[cluster] for cluster in list(heatmap_data['cluster'])]
         heatmap_data['cluster'] = new_order
         
-        heatmap_values = heatmap_data.loc[:, heatmap_data.columns != 'cluster']
         main_heatmap = go.Heatmap(
-                z=heatmap_values,
+                z=heatmap_data.loc[:, heatmap_data.columns != 'cluster'],
                 colorscale=heatmap_colorscale,
                 colorbar=dict(
                     orientation='h',    
@@ -2267,7 +2349,7 @@ def show_additional_plots(
                 ),
                 reversescale=heatmap_colorscale_reversed,
                 hovertemplate='Feature: %{y} <br>Segment: %{x:.0f} <br>Av. expr: %{z:.3f} <extra></extra>',
-                x=list(np.arange(heatmap_values.shape[1])),
+                x=list(np.arange(heatmap_data.shape[0])),
                 y=heatmap_data.index,
             )
         side_heatmap = go.Heatmap(
@@ -2340,8 +2422,7 @@ def show_additional_plots(
         )
         return heatmap, barplot, heatmap_data.to_json()
     else:
-        stored_heatmap = heatmap_data if heatmap_data is not None else pd.DataFrame().to_json()
-        return empty_plot, empty_plot, stored_heatmap
+        return empty_plot, empty_plot, dash.no_update
 
 
 @app.callback(
@@ -2371,11 +2452,11 @@ def show_heatmap_popover(
             'Segment': list(tube_df['segment___'] + 1)
         })
         if data_type == 'h5ad':
-            expression = expression_vector(h5_file[indices, selected_cell['points'][0]['y']])
+            expression = h5_file[indices, selected_cell['points'][0]['y']].X.todense().tolist()
         else:
-            expression = expression_vector(h5_file[modality][indices, selected_cell['points'][0]['y']])
+            expression = h5_file[modality][indices, selected_cell['points'][0]['y']].X.todense().tolist()
 
-        final_df['Expression'] = expression
+        final_df['Expression'] = sum(expression, [])
         
         if remove_zeros:
             final_df = final_df[final_df['Expression'] > 0]
@@ -2519,7 +2600,7 @@ def show_heatmap_popover(
     State('select_z', 'value'),
     State('scatter_color_type', 'data'),
     State('cells_and_segments', 'data'),
-    prevent_initial_call=True
+    prevent_initiall_call=True
 )
 def cj_plot_scatter(
     grid_is_generated, trajectory_is_generated, point_size, opacity, scatter_colorscale,
@@ -2537,32 +2618,43 @@ def cj_plot_scatter(
         raise PreventUpdate
     elif something_is_empty_string(trajectory_width, trajectory_opacity, opacity, point_size, tube_cells_size):
         raise PreventUpdate
+    if not all(col in df.columns for col in (x, y, z)):
+        # Selection left over from a previously loaded dataset.
+        raise PreventUpdate
 
     if cells_and_segments is not None:
         cells_and_segments = pd.read_json(cells_and_segments)
 
     if general_or_modality == 'single_modality' and scatter_h5ad_var is not None:
-        temp_var_name = f'{scatter_h5ad_var}'
-        expression_array = expression_vector(h5_file[:, scatter_h5ad_var])
-        temp_pd = pd.DataFrame({temp_var_name: expression_array})
-        temp_df = pd.concat([df, temp_pd], axis=1)
-        fig_data, volume_data = scatter_plot_data_generator(
-            temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-            scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
-            hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-            x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
-            kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+        try:
+            temp_var_name = f'{scatter_h5ad_var}'
+            expression_array = h5_file[:, scatter_h5ad_var].X.toarray().tolist()
+            expression_array = [item[0] for item in expression_array]
+            temp_pd = pd.DataFrame({temp_var_name: expression_array})
+            temp_df = pd.concat([df, temp_pd], axis=1)
+            fig_data, volume_data = scatter_plot_data_generator(
+                temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
+                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale,
+                x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+        except Exception:
+            raise PreventUpdate
     elif general_or_modality == 'modality' and scatter_modality_var is not None:
-        temp_var_name = f'{modality}: {scatter_modality_var}'
-        expression_array = expression_vector(h5_file[modality][:, scatter_modality_var])
-        temp_pd = pd.DataFrame({temp_var_name: expression_array})
-        temp_df = pd.concat([df, temp_pd], axis=1)
-        fig_data, volume_data = scatter_plot_data_generator(
-            temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
-            scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
-            hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale, 
-            x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
-            kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+        try:
+            temp_var_name = f'{modality}: {scatter_modality_var}'
+            expression_array = h5_file[modality][:, scatter_modality_var].X.toarray().tolist()
+            expression_array = [item[0] for item in expression_array]
+            temp_pd = pd.DataFrame({temp_var_name: expression_array})
+            temp_df = pd.concat([df, temp_pd], axis=1)
+            fig_data, volume_data = scatter_plot_data_generator(
+                temp_df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
+                scatter_color, scatter_select_color_type, temp_var_name, show_colorscale, hover_data,
+                hover_data_storage, custom_colorscale_switch, reverse_colorscale_switch, custom_colorscale,
+                x, y, z, False, colorscale_quantiles, add_volume, cutoff, volume_opacity, volume_single_color,
+                kernel, kernel_smooth, sd_scaler, grid_size, radius_scaler)
+        except Exception:
+            raise PreventUpdate
     else:
         fig_data, volume_data = scatter_plot_data_generator(
             df, point_size, opacity, scatter_colorscale, scatter_colorscale_quantitative,
@@ -2656,7 +2748,122 @@ def cj_plot_scatter(
     return fig
 
 
+@app.callback(
+    Output('cj_scatter_plot', 'figure', allow_duplicate=True),
+    Output('cj_x_plot', 'figure', allow_duplicate=True),
+    Output('cj_y_plot', 'figure', allow_duplicate=True),
+    Output('scatter_plot', 'figure', allow_duplicate=True),
+    Output('cone_plot', 'figure', allow_duplicate=True),
+    Output('trajectories', 'figure', allow_duplicate=True),
+    Output('feature_distribution_histogram', 'figure', allow_duplicate=True),
+    Output('trajectories_length_histogram', 'figure', allow_duplicate=True),
+    Output('plot_tabs', 'value', allow_duplicate=True),
+    Output('save_figure', 'value', allow_duplicate=True),
+    Output('save_format', 'value', allow_duplicate=True),
+    Output('save_scale', 'value', allow_duplicate=True),
+    Output('scatter_hover_features', 'value', allow_duplicate=True),
+    Output('general_theme', 'value', allow_duplicate=True),
+    Output('general_show_ticks', 'checked', allow_duplicate=True),
+    Output('general_show_legend', 'checked', allow_duplicate=True),
+    Output('general_show_colorscale', 'checked', allow_duplicate=True),
+    Output('general_show_legend_streamlines', 'checked', allow_duplicate=True),
+    Output('scatter_size', 'value', allow_duplicate=True),
+    Output('scatter_opacity', 'value', allow_duplicate=True),
+    Output('scatter_quantitative_colorscale', 'value', allow_duplicate=True),
+    Output('scatter_reverse_colorscale', 'checked', allow_duplicate=True),
+    Output('scatter_colorscale', 'value', allow_duplicate=True),
+    Output('scatter_custom_colorscale', 'checked', allow_duplicate=True),
+    Output('scatter_colorscale_quantiles', 'value', allow_duplicate=True),
+    Output('scatter_add_colors', 'checked', allow_duplicate=True),
+    Output('scatter_color', 'value', allow_duplicate=True),
+    Output('clone_switch', 'checked', allow_duplicate=True),
+    Output('clone_radius', 'value', allow_duplicate=True),
+    Output('cone_size', 'value', allow_duplicate=True),
+    Output('cone_opacity', 'value', allow_duplicate=True),
+    Output('cone_colorscale', 'value', allow_duplicate=True),
+    Output('trajectory_select_type', 'value', allow_duplicate=True),
+    Output('chunk_size', 'value', allow_duplicate=True),
+    Output('add_scatterplot', 'checked', allow_duplicate=True),
+    Output('trajectory_width', 'value', allow_duplicate=True),
+    Output('trajectory_opacity', 'value', allow_duplicate=True),
+    Output('trajectory_colorscale', 'value', allow_duplicate=True),
+    Output('cj_n_grid', 'value', allow_duplicate=True),
+    Output('block_new_trajectory', 'checked', allow_duplicate=True),
+    Output('heatmap_select_group', 'value', allow_duplicate=True),
+    Output('heatmap_method', 'value', allow_duplicate=True),
+    Output('n_clusters', 'value', allow_duplicate=True),
+    Output('n_genes', 'value', allow_duplicate=True),
+    Output('cj_radius', 'value', allow_duplicate=True),
+    Output('cj_n_segments', 'value', allow_duplicate=True),
+    Output('highlight_tube_cells', 'value', allow_duplicate=True),
+    Output('tube_cells_size', 'value', allow_duplicate=True),
+    Output('tube_cells_color', 'value', allow_duplicate=True),
+    Output('heatmap_colorscale', 'value', allow_duplicate=True),
+    Output('heatmap_popover_plottype', 'value', allow_duplicate=True),
+    Output('heatmap_trend_method', 'value', allow_duplicate=True),
+    Output('scatter_volume_plot', 'checked', allow_duplicate=True),
+    Output('scatter_volume_single_color', 'checked', allow_duplicate=True),
+    Output('scatter_volume_cutoff', 'value', allow_duplicate=True),
+    Output('scatter_volume_opacity', 'value', allow_duplicate=True),
+    Output('scatter_volume_kernel', 'value', allow_duplicate=True),
+    Output('scatter_volume_kernel_smooth', 'value', allow_duplicate=True),
+    Output('scatter_volume_gaussian_sd_scaler', 'value', allow_duplicate=True),
+    Output('scatter_volume_grid_size', 'value', allow_duplicate=True),
+    Output('scatter_volume_radius_scaler', 'value', allow_duplicate=True),
+    Output('n_grid', 'value', allow_duplicate=True),
+    Output('select_integration_method', 'value', allow_duplicate=True),
+    Output('n_steps', 'value', allow_duplicate=True),
+    Output('time_steps', 'value', allow_duplicate=True),
+    Output('diff_thr', 'value', allow_duplicate=True),
+    Output('scale_grid', 'value', allow_duplicate=True),
+    Output('streamline_density', 'value', allow_duplicate=True),
+    Output('cj_integration_method', 'value', allow_duplicate=True),
+    Output('cj_starting_velocity', 'value', allow_duplicate=True),
+    Output('cj_n_steps', 'value', allow_duplicate=True),
+    Output('cj_time_steps', 'value', allow_duplicate=True),
+    Output('cj_diff_thr', 'value', allow_duplicate=True),
+    Output('scale_grid_cj', 'value', allow_duplicate=True),
+    Output('save_width', 'value', allow_duplicate=True),
+    Output('save_height', 'value', allow_duplicate=True),
+    Output('general_legend_orientation', 'value', allow_duplicate=True),
+    Output('general_legend_maxheight', 'value', allow_duplicate=True),
+    Output('general_legend_leftright', 'value', allow_duplicate=True),
+    Output('general_legend_topbottom', 'value', allow_duplicate=True),
+    Output('subset_trajectories', 'value', allow_duplicate=True),
+    Output('select_x', 'value', allow_duplicate=True),
+    Output('select_y', 'value', allow_duplicate=True),
+    Output('select_z', 'value', allow_duplicate=True),
+    Output('select_u', 'value', allow_duplicate=True),
+    Output('select_v', 'value', allow_duplicate=True),
+    Output('select_w', 'value', allow_duplicate=True),
+    Output('scatter_feature', 'value', allow_duplicate=True),
+    Output('scatter_h5ad_dropdown', 'value', allow_duplicate=True),
+    Output('cj_placeholder_2', 'children', allow_duplicate=True),
+    Input('output_data_upload', 'children'),
+    prevent_initial_call=True,
+)
+def reset_all_on_upload(output):
+    if output is None:
+        raise PreventUpdate
+    blank = blank_figure()
+    return (
+        blank, blank, blank, blank, blank, blank, blank, blank,
+        'scatter', 'Figure - Scatter plot', 'png', 1, [],
+        DEFAULT_TEMPLATE, True, True, True, True, 2, 1,
+        QUANTITATIVE_SCATTER_PALETTES[0], False,
+        QUALITATIVE_COLOR_NAMES[1], False, [0, 1], False,
+        'rgb(41, 96, 214)', False, 1, 3, 1, DEFAULT_COLORSCALE,
+        'streamlines', 50, True, 5, 1, 'Blues', 20, False,
+        'automatic', 'absolute', 2, 100, 1, 10, 'single',
+        2, 'red', 'Balance', 'Strip plot', 'none', False,
+        False, 60, 0.1, 'linear', 20, 2, 25, 1, 10, 'euler',
+        200, 1, 0.005, 1, 1, 'euler', 'cell', 1000, 1, 0.001,
+        1, 1500, 1000, 'v', 30, 0, 1, 1,
+        None, None, None, None, None, None, None, None, None
+    )
+
+
 if __name__ == '__main__':
     if not args.suppressbrowser:
         Timer(1, open_browser).start()
-    app.run(debug=args.debug, host=args.host, port=args.port)
+    app.run(debug=args.debug, port=args.port)

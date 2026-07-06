@@ -897,7 +897,7 @@ trajectories_accordion = dmc.Accordion(
                                             description='Minimal difference between two consecutive points in the trajectory.'
                                         ),
                                         dmc.NumberInput(
-                                            id='scale_grid', 
+                                            id='scale_grid',
                                             min=0.01,
                                             value=1,
                                             precision=1,
@@ -906,6 +906,18 @@ trajectories_accordion = dmc.Accordion(
                                             icon=DashIconify(icon='fluent-mdl2:scale-volume'),
                                             description='Check for the presence of cells in a grid of a rescaled size. \
                                                 The trajectory calculation is aborted if no cells are found.'
+                                        ),
+                                        dmc.NumberInput(
+                                            id='streamline_density',
+                                            min=0,
+                                            value=1,
+                                            precision=1,
+                                            step=0.5,
+                                            label='Streamline separation',
+                                            icon=DashIconify(icon='tabler:vector-triangle'),
+                                            description='Prevents streamlines from overlapping when there are many, \
+                                                like matplotlib streamplot. Lower values draw fewer, more separated \
+                                                lines; higher values draw more, denser lines. Set to 0 to disable.'
                                         ),
                                         dmc.Space(h=10),
                                         dmc.Button(
